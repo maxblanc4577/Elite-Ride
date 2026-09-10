@@ -1,0 +1,47 @@
+{
+  "short_name": "Elite Ride",
+  "name": "Elite Ride Dominica",
+  "description": "Dominica's premier nature-island ride-hailing, airport transfer, and mountain transit app with live GPS tracking and local payments.",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "id": "/",
+  "scope": "/",
+  "background_color": "#022c22",
+  "theme_color": "#059669",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "categories": [
+    "travel",
+    "transportation",
+    "maps"
+  ],
+  "shortcuts": [
+    {
+      "name": "Book a Ride",
+      "short_name": "Book",
+      "description": "Quickly book a ride anywhere across Dominica",
+      "url": "/?mode=rider",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Captain Driver Mode",
+      "short_name": "Captain",
+      "description": "Go online and accept passenger ride dispatches",
+      "url": "/?mode=driver",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
