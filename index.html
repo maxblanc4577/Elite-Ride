@@ -25,13 +25,39 @@
     
     <!-- Device Optimization -->
     <meta name="format-detection" content="telephone=no" />
-    <script type="module" crossorigin src="/assets/index-BkKyW8KF.js"></script>
-    <link rel="modulepreload" crossorigin href="/assets/vendor-react-BIgVU1SB.js">
-    <link rel="modulepreload" crossorigin href="/assets/vendor-ui-DLrPevHR.js">
-    <link rel="modulepreload" crossorigin href="/assets/vendor-firebase-K-bqH8i7.js">
-    <link rel="modulepreload" crossorigin href="/assets/vendor-charts-B1K6sbrI.js">
-    <link rel="modulepreload" crossorigin href="/assets/vendor-pdf-Dt66Vt1P.js">
-    <link rel="stylesheet" crossorigin href="/assets/index-B-eCEckE.css">
+    <script type="module" crossorigin src="/assets/index-bkkyw8kf.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/vendor-react-bigvu1sb.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-ui-dlrpevhr.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-firebase-k-bqH8i7.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-charts-b1k6sbri.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-pdf-dt66vt1p.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-b-ececke.css">
+    <style>
+      div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(5),
+      div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(7),
+      div#root:nth-of-type(1) > div:nth-of-type(1) > footer:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) {
+        display: none !important;
+      }
+    </style>
+    <script>
+      const observer = new MutationObserver(() => {
+        document.querySelectorAll('*').forEach(el => {
+          if (el.childNodes.length === 1 && el.childNodes[0].nodeType === 3) {
+            const text = el.textContent || '';
+            if (text.includes('Captain Performance') || text.includes('Captain Performance Dashboard')) {
+              let target = el;
+              for (let i = 0; i < 4; i++) {
+                if (target.parentElement && target.parentElement !== document.body && target.parentElement.id !== 'root') {
+                  target = target.parentElement;
+                }
+              }
+              target.style.display = 'none';
+            }
+          }
+        });
+      });
+      observer.observe(document.documentElement, { childList: true, subtree: true });
+    </script>
   </head>
   <body class="bg-slate-950 text-slate-100 antialiased selection:bg-emerald-500 selection:text-white overscroll-none select-none">
     <div id="root"></div>
