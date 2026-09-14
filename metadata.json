@@ -1,6 +1,6 @@
 {
   "name": "Elite Ride Dominica",
   "description": "Dominica's premier nature-island ride-hailing, airport transfer, and mountain transit app with live GPS tracking and local payments.",
-  "requestFramePermissions": ["geolocation"],
+  "requestFramePermissions": ["geolocation", "camera"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

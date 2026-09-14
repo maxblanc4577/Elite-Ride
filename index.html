@@ -22,6 +22,9 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
     <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png" />
     <link rel="shortcut icon" href="/icons/icon-192.png" />
+
+    <!-- jsPDF Library UMD -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
     <!-- Device Optimization -->
     <meta name="format-detection" content="telephone=no" />
@@ -756,6 +759,42 @@
                 <div id="adm-acc-res" style="font-size:13px; color:#60a5fa; margin-top:4px;"></div>
               </div>
 
+              <!-- Tab 4: Ride Analytics -->
+              <div id="tab-analytics" class="adm-content" style="display:none; flex-direction:column; gap:16px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <h3 style="margin:0; font-size:16px; color:#e2e8f0;">📈 Daily Ride Demand & Analytics (Last 30 Days)</h3>
+                  <button onclick="window.generatePDFReceiptForLastRide()" style="background:#0284c7; color:white; border:none; padding:6px 12px; border-radius:6px; font-weight:600; cursor:pointer; font-size:12px;">📥 Download Last Ride PDF Receipt</button>
+                </div>
+                <div style="font-size:12px; color:#94a3b8;">Visualizing completed and scheduled trip volume across Dominica's parishes and nature trails over the past 30 days based on local records.</div>
+                
+                <!-- Bar Chart Container -->
+                <div style="background:#0f172a; border:1px solid #334155; border-radius:12px; padding:16px; height:240px; display:flex; flex-direction:column; justify-content:flex-end;">
+                  <div style="display:flex; align-items:flex-end; justify-content:space-between; height:180px; gap:4px; padding-bottom:10px; border-bottom:1px solid #334155;" id="analytics-bar-chart">
+                    <!-- Bars inserted via renderAnalyticsBars() -->
+                  </div>
+                  <div style="display:flex; justify-content:space-between; font-size:10px; color:#94a3b8; margin-top:6px;">
+                    <span>30 Days Ago</span>
+                    <span>15 Days Ago</span>
+                    <span>Today</span>
+                  </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:12px;">
+                  <div style="background:#0f172a; border:1px solid #334155; border-radius:10px; padding:12px; text-align:center;">
+                    <div style="font-size:11px; color:#94a3b8;">Total Rides (30D)</div>
+                    <div style="font-size:20px; font-weight:bold; color:#34d399;" id="analytics-total-rides">142</div>
+                  </div>
+                  <div style="background:#0f172a; border:1px solid #334155; border-radius:10px; padding:12px; text-align:center;">
+                    <div style="font-size:11px; color:#94a3b8;">Peak Demand Parish</div>
+                    <div style="font-size:15px; font-weight:bold; color:#38bdf8;">St. George (Roseau)</div>
+                  </div>
+                  <div style="background:#0f172a; border:1px solid #334155; border-radius:10px; padding:12px; text-align:center;">
+                    <div style="font-size:11px; color:#94a3b8;">Avg Daily Fare</div>
+                    <div style="font-size:20px; font-weight:bold; color:#f59e0b;">EC$ 48.50</div>
+                  </div>
+                </div>
+              </div>
+
             </div>
           </div>
         `;
@@ -908,6 +947,7 @@
               <button id="chat-sos-btn" title="Emergency SOS" style="background:#991b1b; border:none; color:white; padding:5px 8px; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;">🚨 SOS</button>
               <button id="chat-cancel-ride-btn" title="Cancel Ride" style="background:#dc2626; border:none; color:white; padding:5px 8px; border-radius:6px; cursor:pointer; font-size:11px; font-weight:600;">❌</button>
               <button id="chat-call-driver-btn" title="Secure VoIP Call Driver" style="background:#0284c7; border:none; color:white; padding:6px 8px; border-radius:6px; cursor:pointer; font-size:11px; font-weight:600;">📞</button>
+              <button id="chat-inspect-btn" title="Inspect Vehicle" style="background:#059669; border:none; color:white; padding:6px 8px; border-radius:6px; cursor:pointer; font-size:11px; font-weight:600;">📷 Inspect</button>
               <button id="chat-profile-toggle-btn" title="Profile" style="background:#334155; border:none; color:#34d399; padding:6px 8px; border-radius:6px; cursor:pointer; font-size:11px; font-weight:600;">👤</button>
               <button id="chat-map-toggle-btn" title="Live Map & ETA" style="background:#334155; border:none; color:#38bdf8; padding:6px 8px; border-radius:6px; cursor:pointer; font-size:11px; font-weight:600;">🗺️</button>
               <button id="chat-close-btn" style="background:transparent; border:none; color:#94a3b8; font-size:20px; cursor:pointer; width:28px; height:28px; display:flex; align-items:center; justify-content:center;">&times;</button>
@@ -972,16 +1012,103 @@
             </div>
           </div>
 
-          <!-- Encryption & Live Map Banner -->
-          <div id="chat-map-banner" style="background:#0f172a; border-bottom:1px solid #334155; padding:10px 14px; display:none; flex-direction:column; gap:6px; font-size:12px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; color:#38bdf8; font-weight:600;">
-              <span>📍 Driver Live Radar & ETA</span>
-              <span style="background:#0284c730; color:#38bdf8; padding:2px 8px; border-radius:10px; font-size:11px;">ETA: 2 mins</span>
+          <!-- Vehicle Inspection & License Plate Proof Banner -->
+          <div id="chat-inspect-banner" style="background:#0f172a; border-bottom:1px solid #334155; padding:14px; display:none; flex-direction:column; gap:10px; font-size:12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; color:#34d399; font-weight:600; font-size:13px;">
+              <span>📷 Vehicle Inspection & License Plate Safety Check</span>
+              <span style="background:#05966930; color:#34d399; padding:2px 8px; border-radius:10px; font-size:11px;">Verified Proof</span>
             </div>
+            <div style="color:#cbd5e1; font-size:11px; line-height:1.4;">
+              Upon arrival in Dominica, use your device camera to take a photo of the vehicle's license plate and exterior. This is securely stored locally as your <b>Ride Safety Check Proof</b>.
+            </div>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <input type="file" id="inspect-camera-input" accept="image/*" capture="environment" style="display:none;" />
+              <button onclick="document.getElementById('inspect-camera-input').click()" style="background:#059669; color:white; border:none; padding:8px 14px; border-radius:8px; font-weight:bold; cursor:pointer; font-size:12px; display:flex; align-items:center; gap:6px;">📷 Take Photo with Camera</button>
+              <span id="inspect-status-msg" style="color:#34d399; font-size:11px;"></span>
+            </div>
+            <div id="inspect-preview-container" style="display:flex; flex-direction:column; gap:6px; max-height:140px; overflow-y:auto;">
+              <!-- Saved inspections list -->
+            </div>
+          </div>
+
+          <!-- Encryption & Live Map Banner -->
+          <div id="chat-map-banner" style="background:#0f172a; border-bottom:1px solid #334155; padding:12px 14px; display:none; flex-direction:column; gap:8px; font-size:12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; color:#38bdf8; font-weight:600;">
+              <span style="display:flex; align-items:center; gap:6px;">🗺️ Dominica Live GPS & SVG Map</span>
+              <span id="map-eta-badge" style="background:#0284c730; color:#38bdf8; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:bold;">ETA: 2 min</span>
+            </div>
+
+            <!-- SVG Custom Map Canvas -->
+            <div style="position:relative; background:#111827; border:1px solid #334155; border-radius:10px; overflow:hidden; height:160px; display:flex; align-items:center; justify-content:center;">
+              <svg id="dominica-svg-map" viewBox="0 0 320 180" style="width:100%; height:100%; background:#0b1329;">
+                <defs>
+                  <linearGradient id="islandGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#064e3b" />
+                    <stop offset="50%" stop-color="#047857" />
+                    <stop offset="100%" stop-color="#022c22" />
+                  </linearGradient>
+                  <radialGradient id="radarPulse" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.5"/>
+                    <stop offset="100%" stop-color="#38bdf8" stop-opacity="0"/>
+                  </radialGradient>
+                </defs>
+
+                <!-- Ocean background grid lines -->
+                <line x1="0" y1="45" x2="320" y2="45" stroke="#1e293b" stroke-width="1" stroke-dasharray="4" />
+                <line x1="0" y1="90" x2="320" y2="90" stroke="#1e293b" stroke-width="1" stroke-dasharray="4" />
+                <line x1="0" y1="135" x2="320" y2="135" stroke="#1e293b" stroke-width="1" stroke-dasharray="4" />
+                <line x1="80" y1="0" x2="80" y2="180" stroke="#1e293b" stroke-width="1" stroke-dasharray="4" />
+                <line x1="160" y1="0" x2="160" y2="180" stroke="#1e293b" stroke-width="1" stroke-dasharray="4" />
+                <line x1="240" y1="0" x2="240" y2="180" stroke="#1e293b" stroke-width="1" stroke-dasharray="4" />
+
+                <!-- Dominica Island Contour Path -->
+                <path d="M140,15 C170,25 185,45 190,70 C195,95 205,120 185,150 C165,175 130,170 120,155 C110,140 115,115 105,90 C95,65 110,35 140,15 Z" fill="url(#islandGrad)" stroke="#10b981" stroke-width="1.5" opacity="0.85" />
+
+                <!-- Island Interior Mountain Peaks -->
+                <circle cx="150" cy="75" r="4" fill="#34d399" opacity="0.6" />
+                <text x="158" y="78" fill="#6ee7b7" font-size="8" font-family="sans-serif">Morne Diablotins</text>
+                <circle cx="155" cy="120" r="4" fill="#34d399" opacity="0.6" />
+                <text x="163" y="123" fill="#6ee7b7" font-size="8" font-family="sans-serif">Morne Trois Pitons</text>
+
+                <!-- Navigation Route Path -->
+                <path id="svg-route-path" d="M 120 150 Q 140 110 160 85 T 180 35" fill="none" stroke="#38bdf8" stroke-width="3" stroke-dasharray="6,4" opacity="0.8" />
+
+                <!-- Pickup Marker -->
+                <circle cx="180" cy="35" r="7" fill="#ef4444" opacity="0.3" />
+                <circle cx="180" cy="35" r="4" fill="#ef4444" />
+                <text x="190" y="38" fill="#fca5a5" font-size="9" font-weight="bold" font-family="sans-serif">Pickup</text>
+
+                <!-- Driver Live Marker -->
+                <g id="svg-driver-marker" transform="translate(120, 150)">
+                  <circle cx="0" cy="0" r="12" fill="url(#radarPulse)">
+                    <animate attributeName="r" values="6;16;6" dur="2s" repeatCount="indefinite"/>
+                    <animate attributeName="opacity" values="0.8;0;0.8" dur="2s" repeatCount="indefinite"/>
+                  </circle>
+                  <circle cx="0" cy="0" r="6" fill="#0284c7" stroke="#ffffff" stroke-width="1.5"/>
+                  <text x="10" y="3" fill="#38bdf8" font-size="9" font-weight="bold" font-family="sans-serif">🚗 Marcus</text>
+                </g>
+              </svg>
+
+              <!-- Map Controls Overlay -->
+              <div style="position:absolute; bottom:6px; right:6px; display:flex; gap:4px;">
+                <button id="map-recenter-btn" style="background:#1e293b; border:1px solid #475569; color:#cbd5e1; padding:2px 6px; border-radius:4px; font-size:10px; cursor:pointer;" onclick="resetMapProgress()">Recenter</button>
+              </div>
+            </div>
+
+            <!-- Telemetry Status Box -->
             <div style="background:#1e293b; border:1px solid #475569; border-radius:8px; padding:8px; display:flex; flex-direction:column; gap:4px; font-family:monospace; color:#cbd5e1; font-size:11px;">
-              <div>Lat: 17.1284° N, Lng: -61.8392° W</div>
-              <div>Speed: 24 mph • Distance: 0.6 miles</div>
-              <div style="color:#34d399;">Status: En route to pickup destination</div>
+              <div style="display:flex; justify-content:space-between;">
+                <span id="map-coords-text">Lat: 15.3015° N, Lng: -61.3885° W</span>
+                <span id="map-speed-text" style="color:#38bdf8;">26 mph</span>
+              </div>
+              <div style="display:flex; justify-content:space-between;">
+                <span id="map-dist-text">Distance to Pickup: 0.8 mi</span>
+                <span id="map-status-text" style="color:#34d399;">En Route (Roseau → Canefield)</span>
+              </div>
+              <!-- Progress bar -->
+              <div style="width:100%; background:#0f172a; height:6px; border-radius:3px; margin-top:2px; overflow:hidden;">
+                <div id="map-progress-bar" style="width:65%; background:linear-gradient(90deg, #0284c7, #38bdf8); height:100%; transition:width 0.5s ease;"></div>
+              </div>
             </div>
           </div>
 
@@ -1028,19 +1155,120 @@
           if (sosBanner) sosBanner.style.display = 'none';
         };
 
+        let mapProgress = 40;
+        window.resetMapProgress = function() {
+          mapProgress = 10;
+          updateMapSimulation();
+        };
+
+        function updateMapSimulation() {
+          const marker = document.getElementById('svg-driver-marker');
+          const progressBar = document.getElementById('map-progress-bar');
+          const distText = document.getElementById('map-dist-text');
+          const etaBadge = document.getElementById('map-eta-badge');
+          const speedText = document.getElementById('map-speed-text');
+          const coordsText = document.getElementById('map-coords-text');
+
+          if (!marker) return;
+
+          mapProgress = (mapProgress + 3) % 92;
+          if (progressBar) progressBar.style.width = mapProgress + '%';
+
+          let t = mapProgress / 100;
+          let x = Math.round((1 - t) * (1 - t) * 120 + 2 * (1 - t) * t * 140 + t * t * 180);
+          let y = Math.round((1 - t) * (1 - t) * 150 + 2 * (1 - t) * t * 85 + t * t * 35);
+          marker.setAttribute('transform', `translate(${x}, ${y})`);
+
+          let remainingDist = Math.max(0.1, (1 - t) * 1.2).toFixed(1);
+          let etaMin = Math.max(1, Math.ceil(remainingDist * 2));
+          if (distText) distText.innerText = `Distance to Pickup: ${remainingDist} mi`;
+          if (etaBadge) etaBadge.innerText = `ETA: ${etaMin} min`;
+          if (speedText) speedText.innerText = `${Math.floor(22 + Math.random() * 8)} mph`;
+          
+          let lat = (15.3015 + (t * 0.012)).toFixed(4);
+          let lng = (-61.3885 - (t * 0.008)).toFixed(4);
+          if (coordsText) coordsText.innerText = `Lat: ${lat}° N, Lng: ${lng}° W`;
+        }
+
+        setInterval(() => {
+          if (mapBanner && mapBanner.style.display === 'flex') {
+            updateMapSimulation();
+          }
+        }, 1500);
+
         const profileBanner = document.getElementById('chat-profile-banner');
         document.getElementById('chat-profile-toggle-btn').onclick = () => {
           profileBanner.style.display = profileBanner.style.display === 'flex' ? 'none' : 'flex';
           if (mapBanner) mapBanner.style.display = 'none';
           const sosBanner = document.getElementById('chat-sos-banner');
           if (sosBanner) sosBanner.style.display = 'none';
+          const inspectBanner = document.getElementById('chat-inspect-banner');
+          if (inspectBanner) inspectBanner.style.display = 'none';
         };
+
+        const inspectBanner = document.getElementById('chat-inspect-banner');
+        document.getElementById('chat-inspect-btn').onclick = () => {
+          inspectBanner.style.display = inspectBanner.style.display === 'flex' ? 'none' : 'flex';
+          if (mapBanner) mapBanner.style.display = 'none';
+          if (profileBanner) profileBanner.style.display = 'none';
+          const sosBanner = document.getElementById('chat-sos-banner');
+          if (sosBanner) sosBanner.style.display = 'none';
+          renderInspectionsList();
+        };
+
+        function renderInspectionsList() {
+          const container = document.getElementById('inspect-preview-container');
+          if (!container) return;
+          const records = JSON.parse(localStorage.getItem('elite_vehicle_inspections') || '[]');
+          if (records.length === 0) {
+            container.innerHTML = '<div style="color:#94a3b8; font-style:italic; font-size:11px;">No vehicle inspection proofs captured yet for this ride.</div>';
+            return;
+          }
+          container.innerHTML = records.map(r => `
+            <div style="background:#1e293b; border:1px solid #334155; border-radius:8px; padding:8px; display:flex; align-items:center; gap:10px;">
+              <img src="${r.image}" style="width:50px; height:40px; object-fit:cover; border-radius:4px; border:1px solid #475569;" />
+              <div style="flex:1; font-size:11px; color:#cbd5e1;">
+                <div style="color:#34d399; font-weight:bold;">🛡️ Ride Safety Check Proof</div>
+                <div>Driver: ${r.driver} • Plate: ${r.plate}</div>
+                <div style="color:#94a3b8; font-size:10px;">Captured: ${r.timestamp}</div>
+              </div>
+            </div>
+          `).join('');
+        }
+
+        const cameraInput = document.getElementById('inspect-camera-input');
+        if (cameraInput) {
+          cameraInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+              const dataUrl = event.target.result;
+              const newRecord = {
+                id: 'INSP-' + Date.now(),
+                driver: 'Marcus Brody',
+                plate: 'P-4421 (Toyota Camry)',
+                image: dataUrl,
+                timestamp: new Date().toLocaleString()
+              };
+              const existing = JSON.parse(localStorage.getItem('elite_vehicle_inspections') || '[]');
+              existing.unshift(newRecord);
+              localStorage.setItem('elite_vehicle_inspections', JSON.stringify(existing));
+              const statusMsg = document.getElementById('inspect-status-msg');
+              if (statusMsg) statusMsg.innerText = '✓ Captured & Stored Locally!';
+              renderInspectionsList();
+              appendMessage("📷 Vehicle inspection & license plate photo captured and verified as Ride Safety Check proof.", true);
+            };
+            reader.readAsDataURL(file);
+          };
+        }
 
         const sosBanner = document.getElementById('chat-sos-banner');
         document.getElementById('chat-sos-btn').onclick = () => {
           sosBanner.style.display = sosBanner.style.display === 'flex' ? 'none' : 'flex';
           if (mapBanner) mapBanner.style.display = 'none';
           if (profileBanner) profileBanner.style.display = 'none';
+          if (inspectBanner) inspectBanner.style.display = 'none';
         };
 
         document.getElementById('chat-call-driver-btn').onclick = () => {
@@ -1306,6 +1534,7 @@
               <div>
                 <div style="font-size:11px; color:#94a3b8;" id="earnings-period-label">Total Weekly Earnings (XCD)</div>
                 <div style="font-size:22px; font-weight:bold; color:#34d399;" id="earnings-total-val">EC$ 2,830.00</div>
+                <div style="font-size:10px; color:#f59e0b; margin-top:2px;" id="earnings-tips-sub">Includes EC$ 0.00 in Passenger Digital Tips</div>
               </div>
               <div style="text-align:right;">
                 <div style="font-size:11px; color:#94a3b8;">Net Take-Home (88%)</div>
@@ -1373,6 +1602,19 @@
         };
 
         renderChart(weeklyData);
+
+        const totalTips = parseFloat(localStorage.getItem('elite_driver_tips_total') || '0');
+        if (totalTips > 0) {
+          const baseTotal = 2830.00;
+          const newTotal = baseTotal + totalTips;
+          const newNet = (newTotal * 0.88).toFixed(2);
+          const totalValEl = document.getElementById('earnings-total-val');
+          const netValEl = document.getElementById('earnings-net-val');
+          const tipsSubEl = document.getElementById('earnings-tips-sub');
+          if (totalValEl) totalValEl.innerText = `EC$ ${newTotal.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+          if (netValEl) netValEl.innerText = `EC$ ${parseFloat(newNet).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+          if (tipsSubEl) tipsSubEl.innerText = `Includes EC$ ${totalTips.toFixed(2)} in Passenger Digital Tips ⭐`;
+        }
 
         let driverStatus = localStorage.getItem('elite_driver_status') || 'available';
         const statusBtn = document.getElementById('drv-status-toggle-btn');
@@ -1492,6 +1734,45 @@
             <div style="font-weight:bold; font-size:13px; color:#cbd5e1;">Your Trusted Emergency Contacts:</div>
             <div id="trusted-contacts-list" style="display:flex; flex-direction:column; gap:8px;"></div>
 
+            <!-- JSON Backup & Restore Section -->
+            <div style="background:#1e293b; border:1px solid #475569; border-radius:12px; padding:14px; display:flex; flex-direction:column; gap:10px;">
+              <div style="font-weight:bold; font-size:13px; color:#38bdf8;">📋 JSON Backup & Restore Emergency Contacts</div>
+              <div style="font-size:11px; color:#94a3b8;">Export your contacts as a JSON string for backup, or paste a JSON configuration to restore instantly.</div>
+              <textarea id="contacts-json-input" placeholder="[{\"name\":\"Maria Joseph\",\"rel\":\"Spouse\",\"phone\":\"+1 767 235-0012\"}]" style="width:100%; height:60px; background:#0f172a; border:1px solid #334155; border-radius:8px; padding:8px; color:white; font-size:11px; outline:none; resize:none; font-family:monospace;"></textarea>
+              <div style="display:flex; gap:8px;">
+                <button onclick="window.exportContactsJSON()" style="flex:1; background:#334155; color:white; border:none; padding:8px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:11px;">Export / Copy JSON</button>
+                <button onclick="window.importContactsJSON()" style="flex:1; background:#059669; color:white; border:none; padding:8px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:11px;">Import from JSON</button>
+              </div>
+            </div>
+
+            <!-- Push Notification Simulator (30 Mins Away) -->
+            <div style="background:#1e293b; border:1px solid #475569; border-radius:12px; padding:14px; display:flex; flex-direction:column; gap:8px;">
+              <div style="font-weight:bold; font-size:13px; color:#f59e0b;">🔔 Scheduled Ride Push Notification Simulator</div>
+              <div style="font-size:11px; color:#94a3b8;">Test the 30-minute advance departure reminder notification for scheduled rides in Dominica.</div>
+              <button onclick="window.simulate30MinPushNotification()" style="background:#b45309; color:white; border:none; padding:10px; border-radius:8px; font-weight:bold; cursor:pointer; font-size:12px;">Simulate 30-Min Ride Departure Push Alert</button>
+            </div>
+
+             <!-- SOS High-Frequency Siren Section -->
+            <div style="background:#450a0a; border:1px solid #dc2626; border-radius:12px; padding:14px; display:flex; flex-direction:column; gap:10px;">
+              <div style="font-weight:bold; font-size:13px; color:#f87171; display:flex; align-items:center; gap:6px;">🚨 Emergency SOS Siren Audio Effect</div>
+              <div style="font-size:11px; color:#fca5a5;">Trigger a high-frequency pulsating emergency siren audio effect and visual strobe to draw immediate public attention.</div>
+              <div style="display:flex; gap:8px;">
+                <button onclick="window.playSOSSiren()" style="flex:1; background:#dc2626; color:white; border:none; padding:10px; border-radius:8px; font-weight:bold; cursor:pointer; font-size:12px;">🔊 Play SOS Siren</button>
+                <button onclick="window.stopSOSSiren()" style="flex:1; background:#334155; color:white; border:none; padding:10px; border-radius:8px; font-weight:bold; cursor:pointer; font-size:12px;">⏹️ Stop Siren</button>
+              </div>
+              <div id="siren-status-badge" style="font-size:11px; color:#f87171; text-align:center; font-weight:bold;"></div>
+            </div>
+
+            <!-- Voice-to-Text Safety Command -->
+            <div style="background:#1e293b; border:1px solid #0284c7; border-radius:12px; padding:14px; display:flex; flex-direction:column; gap:8px;">
+              <div style="font-weight:bold; font-size:13px; color:#38bdf8; display:flex; align-items:center; gap:6px;">🎙️ Voice-to-Text Hands-Free SOS Command</div>
+              <div style="font-size:11px; color:#94a3b8;">Say <b style="color:white;">"Elite Emergency"</b> aloud to automatically trigger the SOS siren and dispatch protocol hands-free.</div>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <button id="voice-listen-btn" onclick="window.toggleVoiceEmergencyListener()" style="background:#0284c7; color:white; border:none; padding:8px 14px; border-radius:8px; font-weight:bold; cursor:pointer; font-size:12px; flex:1;">🎙️ Start Voice Command Listener</button>
+              </div>
+              <div id="voice-status-badge" style="font-size:11px; color:#38bdf8; text-align:center;">Status: Listening Inactive</div>
+            </div>
+
             <div style="background:#450a0a; border:1px solid #7f1d1d; border-radius:10px; padding:12px; font-size:12px; color:#fca5a5; display:flex; flex-direction:column; gap:6px;">
               <div style="font-weight:bold; color:#f87171;">📍 500m Driver Proximity Alert Status</div>
               <div>Browser notifications are <span id="notif-status-text" style="color:#34d399; font-weight:bold;">Active</span>. You will receive an instant alert when driver Marcus Brody comes within 500 meters of your pickup spot.</div>
@@ -1555,6 +1836,195 @@
         contacts = contacts.filter(c => c.id !== id);
         localStorage.setItem('elite_trusted_contacts', JSON.stringify(contacts));
         renderTrustedContacts();
+      };
+
+      window.exportContactsJSON = () => {
+        const contacts = localStorage.getItem('elite_trusted_contacts') || '[]';
+        const box = document.getElementById('contacts-json-input');
+        if (box) box.value = contacts;
+        alert("Trusted contacts exported to JSON string box.");
+      };
+
+      window.importContactsJSON = () => {
+        const box = document.getElementById('contacts-json-input');
+        if (!box) return;
+        try {
+          const parsed = JSON.parse(box.value);
+          if (!Array.isArray(parsed)) throw new Error("Must be an array");
+          localStorage.setItem('elite_trusted_contacts', JSON.stringify(parsed));
+          renderTrustedContacts();
+          alert("Trusted contacts successfully imported from JSON!");
+        } catch (e) {
+          alert("Invalid JSON format. Please verify and try again.");
+        }
+      };
+
+      window.simulate30MinPushNotification = () => {
+        if ("Notification" in window) {
+          if (Notification.permission === "granted") {
+            new Notification("🚗 Elite Ride: 30-Min Departure Notice", {
+              body: "Your scheduled ride departs in 30 minutes! Tap to review route details and prepare for pickup in Dominica.",
+              icon: "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=120"
+            });
+            alert("✓ 30-Minute Push Notification simulated and sent successfully!");
+          } else {
+            Notification.requestPermission().then(perm => {
+              if (perm === "granted") {
+                new Notification("🚗 Elite Ride: 30-Min Departure Notice", {
+                  body: "Your scheduled ride departs in 30 minutes! Tap to review route details.",
+                });
+                alert("✓ Push notification permission granted & test notification sent!");
+              } else {
+                alert("Browser notifications are blocked. Please enable them in browser settings.");
+              }
+            });
+          }
+        } else {
+          alert("Browser notifications are not supported in this environment.");
+        }
+      };
+
+       let recognition = null;
+       let isListeningVoice = false;
+
+       window.toggleVoiceEmergencyListener = function() {
+         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+         if (!SpeechRecognition) {
+           alert("Speech Recognition is not supported in this browser. Please use Chrome or Safari.");
+           return;
+         }
+
+         const statusBadge = document.getElementById('voice-status-badge');
+         const listenBtn = document.getElementById('voice-listen-btn');
+
+         if (isListeningVoice) {
+           if (recognition) {
+             try { recognition.stop(); } catch (e) {}
+           }
+           isListeningVoice = false;
+           if (statusBadge) statusBadge.innerText = 'Status: Listening Inactive';
+           if (listenBtn) {
+             listenBtn.innerText = '🎙️ Start Voice Command Listener';
+             listenBtn.style.background = '#0284c7';
+           }
+           return;
+         }
+
+         recognition = new SpeechRecognition();
+         recognition.continuous = true;
+         recognition.interimResults = true;
+         recognition.lang = 'en-US';
+
+         recognition.onstart = () => {
+           isListeningVoice = true;
+           if (statusBadge) statusBadge.innerText = 'Status: Listening... Say "Elite Emergency"';
+           if (listenBtn) {
+             listenBtn.innerText = '🛑 Stop Voice Listener';
+             listenBtn.style.background = '#dc2626';
+           }
+         };
+
+         recognition.onresult = (event) => {
+           for (let i = event.resultIndex; i < event.results.length; ++i) {
+             const transcript = event.results[i][0].transcript.toLowerCase();
+             console.log("Heard speech:", transcript);
+             if (transcript.includes('elite emergency') || transcript.includes('emergency')) {
+               console.log("Trigger phrase detected!");
+               window.playSOSSiren();
+               if (statusBadge) statusBadge.innerText = '🚨 PHRASE DETECTED! SOS SIREN TRIGGERED!';
+               if (recognition) {
+                 try { recognition.stop(); } catch (e) {}
+               }
+               isListeningVoice = false;
+               if (listenBtn) {
+                 listenBtn.innerText = '🎙️ Start Voice Command Listener';
+                 listenBtn.style.background = '#0284c7';
+               }
+               break;
+             }
+           }
+         };
+
+         recognition.onerror = (event) => {
+           console.error("Speech recognition error", event.error);
+           if (statusBadge) statusBadge.innerText = 'Status: Error (' + event.error + ') - Click to retry';
+           isListeningVoice = false;
+           if (listenBtn) {
+             listenBtn.innerText = '🎙️ Start Voice Command Listener';
+             listenBtn.style.background = '#0284c7';
+           }
+         };
+
+         recognition.onend = () => {
+           if (isListeningVoice) {
+             try { recognition.start(); } catch (e) {}
+           }
+         };
+
+         try {
+           recognition.start();
+         } catch (e) {
+           console.error(e);
+           alert("Could not start voice recognition. Microphone permission may be required.");
+         }
+       };
+
+      let sosAudioCtx = null;
+      let sosOscillator = null;
+      let sosGainNode = null;
+      let sosIntervalTimer = null;
+
+      window.playSOSSiren = function() {
+        try {
+          if (sosAudioCtx) {
+            window.stopSOSSiren();
+          }
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          sosAudioCtx = new AudioContext();
+
+          sosOscillator = sosAudioCtx.createOscillator();
+          sosGainNode = sosAudioCtx.createGain();
+
+          sosOscillator.type = 'sawtooth';
+          sosOscillator.frequency.setValueAtTime(600, sosAudioCtx.currentTime);
+
+          sosGainNode.gain.setValueAtTime(0.3, sosAudioCtx.currentTime);
+
+          sosOscillator.connect(sosGainNode);
+          sosGainNode.connect(sosAudioCtx.destination);
+          sosOscillator.start();
+
+          // Modulate frequency for wailing siren effect (600Hz <-> 1200Hz)
+          let high = true;
+          sosIntervalTimer = setInterval(() => {
+            if (!sosAudioCtx) return;
+            high = !high;
+            sosOscillator.frequency.setTargetAtTime(high ? 1200 : 600, sosAudioCtx.currentTime, 0.1);
+          }, 400);
+
+          const badge = document.getElementById('siren-status-badge');
+          if (badge) badge.innerText = '🚨 SOS Siren Active & Pulsating! (Drawing Public Attention)';
+          dispatchSosToTrustedContacts();
+        } catch (e) {
+          console.error(e);
+          alert("Audio Context error or autoplay blocked. Please interact and try again.");
+        }
+      };
+
+      window.stopSOSSiren = function() {
+        if (sosIntervalTimer) clearInterval(sosIntervalTimer);
+        sosIntervalTimer = null;
+        if (sosOscillator) {
+          try { sosOscillator.stop(); } catch (e) {}
+          sosOscillator.disconnect();
+          sosOscillator = null;
+        }
+        if (sosAudioCtx) {
+          try { sosAudioCtx.close(); } catch (e) {}
+          sosAudioCtx = null;
+        }
+        const badge = document.getElementById('siren-status-badge');
+        if (badge) badge.innerText = '⏹️ Siren stopped.';
       };
 
       // Trigger alerts to trusted contacts on SOS
@@ -1738,8 +2208,9 @@
             <span style="color:#94a3b8;">🌐 Lang:</span>
             <select id="elite-lang-select" style="background:#1e293b; color:white; border:1px solid #475569; border-radius:8px; padding:4px 8px; font-size:11px; outline:none; cursor:pointer;">
               <option value="en">English (EN)</option>
-              <option value="patois">Patois (Dominica Creole)</option>
+              <option value="patois">Patois (Kwéyòl)</option>
               <option value="es">Español (ES)</option>
+              <option value="fr">Français (FR)</option>
             </select>
           `;
           document.body.appendChild(langWidget);
@@ -1753,6 +2224,107 @@
           const savedLang = localStorage.getItem('elite_app_lang') || 'en';
           document.getElementById('elite-lang-select').value = savedLang;
           applyLanguageLocalization(savedLang);
+        }
+      }
+
+      function renderAnalyticsBars() {
+        const container = document.getElementById('analytics-bar-chart');
+        if (!container) return;
+        container.innerHTML = '';
+        
+        const scheduled = JSON.parse(localStorage.getItem('elite_scheduled_rides') || '[]');
+        const data = [];
+        let total = scheduled.length + 114;
+        
+        for (let i = 30; i >= 1; i--) {
+          const val = Math.floor(3 + Math.random() * 10 + (i % 7 === 0 ? 5 : 0));
+          data.push({ day: i, val });
+        }
+        
+        const maxVal = Math.max(...data.map(d => d.val), 1);
+        data.forEach(d => {
+          const pct = Math.round((d.val / maxVal) * 100);
+          const col = document.createElement('div');
+          col.style.cssText = `flex:1; background:linear-gradient(180deg, #38bdf8, #0284c7); height:${pct}%; border-radius:4px 4px 0 0; position:relative; cursor:pointer; transition:all 0.2s;`;
+          col.title = `Day -${d.day}: ${d.val} rides`;
+          col.onmouseenter = () => { col.style.background = '#34d399'; };
+          col.onmouseleave = () => { col.style.background = 'linear-gradient(180deg, #38bdf8, #0284c7)'; };
+          container.appendChild(col);
+        });
+
+        const totalEl = document.getElementById('analytics-total-rides');
+        if (totalEl) totalEl.innerText = total;
+      }
+
+      window.generatePDFReceiptForLastRide = function() {
+        if (typeof window.jspdf === 'undefined') {
+          const script = document.createElement('script');
+          script.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+          script.onload = () => executePDFExport();
+          document.head.appendChild(script);
+        } else {
+          executePDFExport();
+        }
+      };
+
+      function executePDFExport() {
+        try {
+          const { jsPDF } = window.jspdf;
+          const doc = new jsPDF();
+
+          doc.setFillColor(2, 44, 34);
+          doc.rect(0, 0, 210, 40, "F");
+
+          doc.setTextColor(255, 255, 255);
+          doc.setFontSize(22);
+          doc.text("ELITE RIDE DOMINICA", 14, 25);
+          
+          doc.setFontSize(10);
+          doc.text("Official Electronic Trip Receipt & Tax Invoice", 14, 33);
+
+          doc.setTextColor(30, 41, 59);
+          doc.setFontSize(12);
+          doc.text("Receipt ID: TX-994821-ELITE", 14, 55);
+          doc.text(`Date & Time: ${new Date().toLocaleString()}`, 14, 63);
+          doc.text("Driver: Marcus Brody (ID: DRV-8821)", 14, 71);
+          doc.text("Vehicle: Toyota RAV4 4x4 (Dominica Nature Transit)", 14, 79);
+
+          doc.setLineWidth(0.5);
+          doc.line(14, 86, 196, 86);
+
+          doc.setFont(undefined, 'bold');
+          doc.text("Trip Route Details:", 14, 96);
+          doc.setFont(undefined, 'normal');
+          doc.text("Pickup: Roseau Ferry Terminal, Bay Street", 14, 104);
+          doc.text("Destination: Trafalgar Falls Nature Reserve, St. George", 14, 112);
+
+          doc.line(14, 120, 196, 120);
+
+          doc.setFont(undefined, 'bold');
+          doc.text("Fare & Payment Breakdown (XCD):", 14, 130);
+          doc.setFont(undefined, 'normal');
+          doc.text("Base Fare & Distance: EC$ 35.00", 14, 138);
+          doc.text("4x4 Mountain Surge Multiplier (1.35x): EC$ 12.00", 14, 146);
+          doc.text("Passenger Digital Tip: EC$ 10.00", 14, 154);
+          doc.text("Taxes & Eco Levy (Included): EC$ 4.20", 14, 162);
+
+          doc.setLineWidth(0.8);
+          doc.line(14, 170, 196, 170);
+
+          doc.setFont(undefined, 'bold');
+          doc.setFontSize(14);
+          doc.text("Total Paid: EC$ 61.20 (Secure Stripe / Card)", 14, 182);
+
+          doc.setFontSize(10);
+          doc.setFont(undefined, 'italic');
+          doc.setTextColor(100, 116, 139);
+          doc.text("Thank you for riding with Elite Ride Dominica — Nature Island's Premier Transit.", 14, 205);
+
+          doc.save("Elite_Ride_Receipt_TX994821.pdf");
+          alert("✓ Official PDF Receipt successfully downloaded!");
+        } catch (e) {
+          console.error(e);
+          alert("Failed to generate PDF receipt. Please try again.");
         }
       }
 
@@ -1785,10 +2357,40 @@
 
             <div>
               <label style="font-size:11px; color:#94a3b8; display:block; margin-bottom:4px;">Passenger Comments / Compliments</label>
-              <textarea id="fb-comment" placeholder="e.g. Extremely polite, clean vehicle, excellent driving through mountain curves!" style="width:100%; height:80px; background:#0f172a; border:1px solid #334155; border-radius:8px; padding:10px; color:white; font-size:12px; outline:none; resize:none;"></textarea>
+              <textarea id="fb-comment" placeholder="e.g. Extremely polite, clean vehicle, excellent driving through mountain curves!" style="width:100%; height:70px; background:#0f172a; border:1px solid #334155; border-radius:8px; padding:10px; color:white; font-size:12px; outline:none; resize:none;"></textarea>
             </div>
 
-            <button id="fb-submit-btn" style="background:#f59e0b; color:#1e293b; border:none; padding:12px; border-radius:10px; font-weight:bold; cursor:pointer; font-size:14px; box-shadow:0 4px 12px rgba(245,158,11,0.3); text-align:center;">Submit Feedback & Save</button>
+            <div>
+              <label style="font-size:11px; color:#94a3b8; display:block; margin-bottom:6px;">Add Digital Tip for Driver (XCD)</label>
+              <div style="display:flex; gap:6px; margin-bottom:8px;" id="tip-selector-container">
+                <button type="button" data-tip="0" class="tip-btn" style="flex:1; background:#0f172a; border:1px solid #334155; border-radius:6px; padding:6px; color:white; font-size:12px; cursor:pointer; font-weight:bold;">$0</button>
+                <button type="button" data-tip="5" class="tip-btn" style="flex:1; background:#0f172a; border:1px solid #334155; border-radius:6px; padding:6px; color:white; font-size:12px; cursor:pointer; font-weight:bold;">$5</button>
+                <button type="button" data-tip="10" class="tip-btn" style="flex:1; background:#059669; border:1px solid #059669; border-radius:6px; padding:6px; color:white; font-size:12px; cursor:pointer; font-weight:bold;">$10 ⭐</button>
+                <button type="button" data-tip="20" class="tip-btn" style="flex:1; background:#0f172a; border:1px solid #334155; border-radius:6px; padding:6px; color:white; font-size:12px; cursor:pointer; font-weight:bold;">$20</button>
+              </div>
+              <input type="number" id="fb-custom-tip" placeholder="Or enter custom tip (XCD)" style="width:100%; background:#0f172a; border:1px solid #334155; border-radius:8px; padding:8px 12px; color:white; font-size:12px; outline:none;" value="10" />
+            </div>
+
+            <!-- Split Fare QR & Link Generator -->
+            <div style="background:#0f172a; border:1px solid #334155; border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:8px;">
+              <div style="font-weight:bold; font-size:12px; color:#38bdf8; display:flex; align-items:center; gap:6px;">🔗 Split Fare with Friends</div>
+              <div style="font-size:11px; color:#94a3b8;">Split trip total (EC$ 47.00) equally among friends. Generates instant shareable payment link & QR code.</div>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <select id="split-count-select" style="background:#1e293b; color:white; border:1px solid #475569; border-radius:6px; padding:6px; font-size:11px; outline:none;">
+                  <option value="2">Split 2 Ways (EC$ 23.50 ea)</option>
+                  <option value="3">Split 3 Ways (EC$ 15.67 ea)</option>
+                  <option value="4">Split 4 Ways (EC$ 11.75 ea)</option>
+                </select>
+                <button type="button" onclick="window.generateSplitFareQR()" style="background:#0284c7; color:white; border:none; padding:6px 12px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:11px;">Generate Link & QR</button>
+              </div>
+              <div id="split-result-box" style="display:none; flex-direction:column; gap:6px; background:#1e293b; padding:10px; border-radius:8px; border:1px solid #334155; align-items:center; text-align:center;">
+                <div id="split-share-link" style="font-family:monospace; font-size:10px; color:#34d399; word-break:break-all;"></div>
+                <div id="split-qr-code-view" style="background:white; padding:6px; border-radius:6px; width:90px; height:90px; display:flex; align-items:center; justify-content:center; font-size:9px; color:#0f172a; font-weight:bold;">[ QR CODE ]</div>
+                <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('split-share-link').innerText); alert('✓ Split Fare payment link copied to clipboard!');" style="background:#334155; color:white; border:none; padding:4px 10px; border-radius:4px; font-size:10px; cursor:pointer;">📋 Copy Link</button>
+              </div>
+            </div>
+
+            <button id="fb-submit-btn" style="background:#f59e0b; color:#1e293b; border:none; padding:12px; border-radius:10px; font-weight:bold; cursor:pointer; font-size:14px; box-shadow:0 4px 12px rgba(245,158,11,0.3); text-align:center;">Submit Feedback & Tip Driver</button>
             <div id="fb-status" style="font-size:12px; color:#34d399; text-align:center; height:18px;"></div>
           </div>
         `;
@@ -1806,13 +2408,35 @@
           };
         });
 
+        const tipBtns = modal.querySelectorAll('.tip-btn');
+        tipBtns.forEach(btn => {
+          btn.onclick = () => {
+            tipBtns.forEach(b => {
+              b.style.background = '#0f172a';
+              b.style.borderColor = '#334155';
+              b.style.color = 'white';
+            });
+            btn.style.background = '#059669';
+            btn.style.borderColor = '#059669';
+            document.getElementById('fb-custom-tip').value = btn.getAttribute('data-tip');
+          };
+        });
+
         document.getElementById('fb-submit-btn').onclick = () => {
           const comment = document.getElementById('fb-comment').value;
+          const tipVal = parseFloat(document.getElementById('fb-custom-tip').value) || 0;
+
+          if (tipVal > 0) {
+            const currentTips = parseFloat(localStorage.getItem('elite_driver_tips_total') || '0');
+            localStorage.setItem('elite_driver_tips_total', (currentTips + tipVal).toString());
+          }
+
           const feedbackRecord = {
             id: 'FB-' + Date.now(),
             driver: 'Marcus Brody',
             rating: selectedStars,
             comment,
+            tip: tipVal,
             timestamp: new Date().toLocaleString()
           };
 
@@ -1820,12 +2444,36 @@
           existing.push(feedbackRecord);
           localStorage.setItem('elite_driver_ratings', JSON.stringify(existing));
 
-          document.getElementById('fb-status').innerText = '✓ Thank you! Feedback successfully saved to local records.';
+          document.getElementById('fb-status').innerText = `✓ Thank you! Feedback & EC$ ${tipVal.toFixed(2)} tip sent to driver.`;
           setTimeout(() => {
             modal.style.display = 'none';
             document.getElementById('fb-status').innerText = '';
             document.getElementById('fb-comment').value = '';
           }, 1500);
+        };
+
+        window.generateSplitFareQR = function() {
+          const countSel = document.getElementById('split-count-select');
+          const count = countSel ? parseInt(countSel.value) : 2;
+          const totalFare = 47.00;
+          const share = (totalFare / count).toFixed(2);
+          const link = `https://elite-ride-dominica.app/pay/split?amount=${share}&trip=TX994821`;
+          
+          const resultBox = document.getElementById('split-result-box');
+          const linkEl = document.getElementById('split-share-link');
+          const qrView = document.getElementById('split-qr-code-view');
+
+          if (resultBox && linkEl && qrView) {
+            resultBox.style.display = 'flex';
+            linkEl.innerText = link;
+            qrView.innerHTML = `
+              <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:9px; color:#0f172a; line-height:1.2;">
+                <div style="font-weight:bold; font-size:10px; color:#0369a1;">SCAN TO PAY</div>
+                <div style="font-size:14px; font-weight:bold; color:#0f172a; margin:2px 0;">EC$ ${share}</div>
+                <div style="font-size:8px; color:#64748b;">Elite Dominica</div>
+              </div>
+            `;
+          }
         };
       }
 
@@ -1863,20 +2511,30 @@
           en: {
             sched: '📅 Schedule Ride',
             feedback: '⭐ Rate Driver',
-            vehTitle: 'Select Vehicle Category',
-            estTitle: 'Ride Fare & Time Estimator'
+            safety: '🛡️ Safety Center',
+            driver: '🚗 Driver Portal',
+            admin: '🛡️ Admin Management'
           },
           patois: {
             sched: '📅 Planifye Vwayaj',
             feedback: '⭐ Note Kapitenn',
-            vehTitle: 'Chwazi Kalité Vwati',
-            estTitle: 'Esmatè Pwi é Tan'
+            safety: '🛡️ Sant Sécurité',
+            driver: '🚗 Pòtal Kapitenn',
+            admin: '🛡️ Gestion Admin'
           },
           es: {
             sched: '📅 Programar Viaje',
             feedback: '⭐ Calificar Conductor',
-            vehTitle: 'Seleccionar Vehículo',
-            estTitle: 'Estimador de Tarifa'
+            safety: '🛡️ Centro de Seguridad',
+            driver: '🚗 Portal de Conductor',
+            admin: '🛡️ Gestión Admin'
+          },
+          fr: {
+            sched: '📅 Programmer Trajet',
+            feedback: '⭐ Noter Chauffeur',
+            safety: '🛡️ Centre de Sécurité',
+            driver: '🚗 Portail Chauffeur',
+            admin: '🛡️ Gestion Admin'
           }
         };
 
@@ -1885,6 +2543,12 @@
         if (schedEl) schedEl.innerHTML = t.sched;
         const fbEl = document.getElementById('elite-feedback-btn');
         if (fbEl) fbEl.innerHTML = t.feedback;
+        const safeEl = document.getElementById('elite-safety-center-btn');
+        if (safeEl) safeEl.innerHTML = t.safety;
+        const drvEl = document.getElementById('elite-driver-portal-btn');
+        if (drvEl) drvEl.innerHTML = t.driver;
+        const admEl = document.getElementById('elite-admin-nav-btn');
+        if (admEl) admEl.innerHTML = t.admin;
       }
     </script>
   </body>

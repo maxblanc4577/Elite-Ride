@@ -26,8 +26,17 @@ var import_express = __toESM(require("express"), 1);
 var import_path = __toESM(require("path"), 1);
 var import_genai = require("@google/genai");
 var import_dotenv = __toESM(require("dotenv"), 1);
-var import_stripe = __toESM(require("stripe"), 1);
+var import_stripe;
+try {
+  import_stripe = __toESM(require("stripe"), 1);
+} catch (e) {
+  import_stripe = { default: null };
+}
 import_dotenv.default.config();
+console.log("[Server Startup] Initializing backend server...");
+console.log("[Server Startup] STRIPE_SECRET_KEY present:", !!process.env.STRIPE_SECRET_KEY);
+console.log("[Server Startup] GEMINI_API_KEY present:", !!process.env.GEMINI_API_KEY);
+console.log("[Server Startup] Stripe module loaded successfully:", !!import_stripe.default);
 var rootDir = process.cwd();
 var app = (0, import_express.default)();
 var PORT = 3e3;
@@ -294,6 +303,9 @@ User Question: "${question}"`;
 var stripeClient = null;
 function getStripe() {
   if (!stripeClient) {
+    if (!import_stripe.default) {
+      throw new Error("Stripe package is not installed");
+    }
     const key = process.env.STRIPE_SECRET_KEY;
     if (!key) {
       throw new Error("STRIPE_SECRET_KEY environment variable is required");
