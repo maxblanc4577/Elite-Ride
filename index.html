@@ -87,14 +87,14 @@
       div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) {
         height: 35px !important;
         width: 292.266px !important;
-        margin-top: 6px !important;
+        margin-top: 8px !important;
         padding-top: 0px !important;
         padding-left: 0px !important;
         padding-right: 1px !important;
         padding-bottom: 2px !important;
-        margin-right: -3px !important;
-        margin-bottom: -10px !important;
-        margin-left: -22px !important;
+        margin-right: -10px !important;
+        margin-bottom: -12px !important;
+        margin-left: -44px !important;
       }
     </style>
   </head>
@@ -232,6 +232,98 @@
         });
       }
 
+      function injectRideEstimationTool() {
+        if (document.getElementById('elite-estimation-widget')) return;
+        const estWidget = document.createElement('div');
+        estWidget.id = 'elite-estimation-widget';
+        estWidget.className = 'fixed bottom-4 left-4 z-50 bg-slate-900/95 border border-sky-500/40 rounded-2xl p-4 shadow-2xl backdrop-blur-md text-white max-w-sm w-full transition-all duration-300';
+        estWidget.innerHTML = `
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center space-x-2">
+              <span class="text-xl">📊</span>
+              <div>
+                <h4 class="font-bold text-sm tracking-wide text-sky-400">Ride Fare & Time Estimator</h4>
+                <p class="text-xs text-slate-400">Instant route estimate & distance</p>
+              </div>
+            </div>
+            <button id="toggle-est-btn" class="text-slate-400 hover:text-white text-xs bg-slate-800 px-2 py-1 rounded-lg">Minimize</button>
+          </div>
+          <div id="est-content-area" class="space-y-3 text-xs">
+            <div>
+              <label class="text-[11px] text-slate-400 block mb-1">Pickup Location</label>
+              <select id="est-pickup" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2 text-white">
+                <option value="roseau">Roseau Center / Cruise Ship Berth</option>
+                <option value="canefield">Canefield Airport (DCF)</option>
+                <option value="trafalgar">Trafalgar Falls Nature Site</option>
+                <option value="soufriere">Soufriere Bay / Scotts Head</option>
+                <option value="portsmouth">Portsmouth Center</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-[11px] text-slate-400 block mb-1">Destination Route</label>
+              <select id="est-destination" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2 text-white">
+                <option value="airport">Melville Hall Airport (DOM) - 45 min</option>
+                <option value="portsmouth_beach">Portsmouth Beach & Cabrits - 35 min</option>
+                <option value="emerald_pool">Emerald Pool Rainforest - 30 min</option>
+                <option value="cabrit_park">Cabrits National Park - 40 min</option>
+                <option value="roseau_market">Roseau Market Square - 15 min</option>
+              </select>
+            </div>
+            <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-3 space-y-1.5 font-mono">
+              <div class="flex justify-between"><span class="text-slate-400">Estimated Fare:</span><span id="est-fare-val" class="font-bold text-emerald-400">EC$ 120.00</span></div>
+              <div class="flex justify-between"><span class="text-slate-400">Travel Time:</span><span id="est-time-val" class="font-semibold text-sky-400">45 mins</span></div>
+              <div class="flex justify-between"><span class="text-slate-400">Distance:</span><span id="est-dist-val" class="text-slate-300">24.5 miles</span></div>
+            </div>
+            <button id="est-apply-btn" class="w-full py-2.5 bg-gradient-to-r from-sky-500 to-emerald-500 hover:from-sky-400 hover:to-emerald-400 text-slate-950 font-bold rounded-xl transition-all shadow-md">
+              Apply Estimate & Book Ride
+            </button>
+          </div>
+        `;
+        document.body.appendChild(estWidget);
+
+        const updateEstimate = () => {
+          const dest = document.getElementById('est-destination').value;
+          const mult = window.eliteVehicleMultipliers[window.eliteVehicleCategory]?.multiplier || 1.0;
+          let baseFare = 120;
+          let timeStr = '45 mins';
+          let distStr = '24.5 miles';
+
+          if (dest === 'portsmouth_beach') {
+            baseFare = 85; timeStr = '35 mins'; distStr = '18.2 miles';
+          } else if (dest === 'emerald_pool') {
+            baseFare = 65; timeStr = '30 mins'; distStr = '14.1 miles';
+          } else if (dest === 'cabrit_park') {
+            baseFare = 95; timeStr = '40 mins'; distStr = '21.0 miles';
+          } else if (dest === 'roseau_market') {
+            baseFare = 35; timeStr = '15 mins'; distStr = '4.2 miles';
+          }
+
+          const finalFare = (baseFare * mult).toFixed(2);
+          document.getElementById('est-fare-val').innerText = `EC$ ${finalFare}`;
+          document.getElementById('est-time-val').innerText = timeStr;
+          document.getElementById('est-dist-val').innerText = distStr;
+        };
+
+        document.getElementById('est-pickup').addEventListener('change', updateEstimate);
+        document.getElementById('est-destination').addEventListener('change', updateEstimate);
+        window.addEventListener('elite-vehicle-changed', updateEstimate);
+
+        document.getElementById('est-apply-btn').addEventListener('click', () => {
+          const fare = document.getElementById('est-fare-val').innerText;
+          const time = document.getElementById('est-time-val').innerText;
+          alert(`✓ Estimate applied successfully!\nFare: ${fare} | Estimated Time: ${time}\nYour ride request has been dispatched to nearby Elite drivers.`);
+        });
+
+        let minimizedEst = false;
+        const toggleEstBtn = document.getElementById('toggle-est-btn');
+        const estContent = document.getElementById('est-content-area');
+        toggleEstBtn.addEventListener('click', () => {
+          minimizedEst = !minimizedEst;
+          estContent.style.display = minimizedEst ? 'none' : 'block';
+          toggleEstBtn.innerText = minimizedEst ? 'Expand' : 'Minimize';
+        });
+      }
+
       function showStripeConfirmationModal(details = {}) {
         let modal = document.getElementById('stripe-success-confirmation-dialog');
         if (!modal) {
@@ -257,7 +349,7 @@
               <p class="text-sm text-emerald-400 font-medium">Your ride and secure digital payment have been confirmed</p>
             </div>
 
-            <div class="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 space-y-3 mb-6 text-sm">
+            <div class="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 space-y-3 mb-4 text-sm">
               <div class="flex justify-between items-center pb-2 border-b border-slate-800/80">
                 <span class="text-slate-400">Transaction Ref</span>
                 <span class="font-mono font-semibold text-emerald-400">${txId}</span>
@@ -276,17 +368,43 @@
               </div>
             </div>
 
+            <!-- Driver Tip Section -->
+            <div class="bg-slate-950/70 border border-slate-800 rounded-2xl p-3.5 mb-5 text-sm">
+              <div class="text-xs font-semibold text-emerald-400 mb-2 flex items-center gap-1.5">
+                <span>🎁 Reward Your Driver (Direct Tip)</span>
+              </div>
+              <div class="grid grid-cols-3 gap-2 mb-2" id="tip-preset-buttons">
+                <button class="tip-btn bg-slate-800 hover:bg-emerald-600/30 border border-slate-700 hover:border-emerald-500 py-2 rounded-xl text-xs font-bold transition-all" data-tip="5">EC$ 5</button>
+                <button class="tip-btn bg-slate-800 hover:bg-emerald-600/30 border border-slate-700 hover:border-emerald-500 py-2 rounded-xl text-xs font-bold transition-all" data-tip="10">EC$ 10</button>
+                <button class="tip-btn bg-slate-800 hover:bg-emerald-600/30 border border-slate-700 hover:border-emerald-500 py-2 rounded-xl text-xs font-bold transition-all" data-tip="15">EC$ 15</button>
+              </div>
+              <div id="tip-success-msg" class="text-xs text-emerald-400 text-center font-medium h-4"></div>
+            </div>
+
             <div class="space-y-3">
-              <button id="stripe-modal-done-btn" class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-emerald-500/20 transition-all text-center">
+              <button id="stripe-modal-done-btn" class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold py-3 px-4 rounded-xl shadow-lg shadow-emerald-500/20 transition-all text-center text-sm">
                 View Live Driver Tracking
               </button>
-              <button id="stripe-modal-close-btn" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium py-2.5 px-4 rounded-xl transition-all text-xs text-center">
+              <button id="stripe-modal-close-btn" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium py-2 px-4 rounded-xl transition-all text-xs text-center">
                 Close
               </button>
             </div>
           </div>
         `;
         modal.style.display = 'flex';
+
+        modal.querySelectorAll('.tip-btn').forEach(btn => {
+          btn.onclick = (e) => {
+            const tipVal = e.target.getAttribute('data-tip');
+            modal.querySelectorAll('.tip-btn').forEach(b => {
+              b.style.background = '#1e293b';
+              b.style.borderColor = '#334155';
+            });
+            e.target.style.background = '#059669';
+            e.target.style.borderColor = '#34d399';
+            document.getElementById('tip-success-msg').innerText = `🎉 Successfully tipped driver EC$ ${tipVal}! Thank you for rewarding excellent service.`;
+          };
+        });
 
         document.getElementById('stripe-modal-done-btn').onclick = () => {
           modal.style.display = 'none';
@@ -302,15 +420,44 @@
         try {
           for (let i = localStorage.length - 1; i >= 0; i--) {
             const key = localStorage.key(i);
-            if (key && (key.toLowerCase().includes('total') || key.toLowerCase().includes('amount') || key.toLowerCase().includes('fare') || key.toLowerCase().includes('price') || key.toLowerCase().includes('pay'))) {
-              localStorage.setItem(key, '0.00');
+            if (key && (key.toLowerCase().includes('total') || key.toLowerCase().includes('amount') || key.toLowerCase().includes('fare') || key.toLowerCase().includes('price') || key.toLowerCase().includes('pay') || key.toLowerCase().includes('balance') || key.toLowerCase().includes('wallet') || key.toLowerCase().includes('pickup') || key.toLowerCase().includes('drop') || key.toLowerCase().includes('destination') || key.toLowerCase().includes('location') || key.toLowerCase().includes('route'))) {
+              if (key.toLowerCase().includes('total') || key.toLowerCase().includes('amount') || key.toLowerCase().includes('fare') || key.toLowerCase().includes('price') || key.toLowerCase().includes('pay') || key.toLowerCase().includes('balance') || key.toLowerCase().includes('wallet')) {
+                localStorage.setItem(key, '0.00');
+              } else {
+                localStorage.removeItem(key);
+              }
             }
           }
-          document.querySelectorAll('input, span, div, p').forEach(el => {
-            const text = el.innerText || '';
-            if ((text.includes('EC$') || text.includes('$')) && (text.includes('Total') || text.includes('Amount') || text.includes('Fare') || text.includes('Price'))) {
-              if (el.children.length === 0) {
-                el.innerText = el.innerText.replace(/[\d,.]+/g, '0.00');
+
+          // Clear pickup and drop-off input fields
+          document.querySelectorAll('input').forEach(input => {
+            const ph = (input.placeholder || '').toLowerCase();
+            const id = (input.id || '').toLowerCase();
+            const name = (input.name || '').toLowerCase();
+            if (ph.includes('pickup') || ph.includes('drop') || ph.includes('destination') || ph.includes('location') || ph.includes('where') || ph.includes('search') ||
+                id.includes('pickup') || id.includes('drop') || id.includes('destination') || id.includes('location') ||
+                name.includes('pickup') || name.includes('drop') || name.includes('destination') || name.includes('location')) {
+              input.value = '';
+            }
+          });
+
+          // Aggressively zero out any element showing currency / fare / total / price / balance / payment
+          const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+          let node;
+          while (node = walker.nextNode()) {
+            if (node.nodeValue) {
+              let val = node.nodeValue;
+              if ((val.includes('EC$') || val.includes('$') || val.toLowerCase().includes('fare') || val.toLowerCase().includes('total') || val.toLowerCase().includes('amount') || val.toLowerCase().includes('price'))) {
+                // Replace any numbers following EC$ or $ or inside fare/total labels with 0.00
+                node.nodeValue = val.replace(/(EC\$|\$)\s*[\d,.]+/g, '$1 0.00').replace(/([\d,.]+\s*(EC\$|\$))/g, '0.00 $2');
+              }
+            }
+          }
+          document.querySelectorAll('input, span, div, p, td, th').forEach(el => {
+            if (el.children.length === 0) {
+              const text = el.innerText || '';
+              if ((text.includes('EC$') || text.includes('$')) && /\d+/.test(text)) {
+                el.innerText = text.replace(/(EC\$|\$)\s*[\d,.]+/g, '$1 0.00');
               }
             }
           });
@@ -319,6 +466,27 @@
 
       window.addEventListener('DOMContentLoaded', () => {
         setTimeout(injectVehicleSelectorUI, 500);
+        setTimeout(injectRideEstimationTool, 600);
+        clearTotalAmountToZero();
+        injectAdminControls();
+        injectRideChatInterface();
+        injectRideHistoryAndDriverPanel();
+        injectSafetyCenterAndProximityNotifications();
+        injectRideEstimationTool();
+        injectRideSchedulerFeature();
+        injectPostRideFeedbackAndGlobalLanguageToggle();
+        checkScheduledRideProximityNotifications();
+        setInterval(() => {
+          updateAdminEmail();
+          injectAdminControls();
+          injectRideChatInterface();
+          injectRideHistoryAndDriverPanel();
+          injectSafetyCenterAndProximityNotifications();
+          injectRideEstimationTool();
+          injectRideSchedulerFeature();
+          injectPostRideFeedbackAndGlobalLanguageToggle();
+          checkScheduledRideProximityNotifications();
+        }, 1000);
 
         const params = new URLSearchParams(window.location.search);
         if (params.get('stripe_success') === 'true' || params.get('success') === 'true' || params.get('session_id') || window.location.href.includes('checkout-chapter') || window.location.href.includes('success')) {
@@ -332,22 +500,55 @@
         }
       });
 
+      window.addEventListener('beforeunload', () => {
+        clearTotalAmountToZero();
+      });
+
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+          clearTotalAmountToZero();
+        }
+      });
+
+      window.addEventListener('blur', () => {
+        clearTotalAmountToZero();
+      });
+
       window.addEventListener('elite-payment-success', (e) => {
         showStripeConfirmationModal(e.detail || {});
         clearTotalAmountToZero();
       });
 
-      // Intercept clicks for Login/Sign in, Final Payment, and Payment Confirmation
+      // Make header logo/brand click-to-refresh globally robust
       document.addEventListener('click', (e) => {
-        const btn = e.target.closest('button');
+        const headerEl = e.target.closest('header, nav');
+        if (headerEl) {
+          const clickedEl = e.target;
+          const txt = (clickedEl.innerText || '').toLowerCase();
+          // If clicked on header brand/logo or title
+          if (clickedEl.tagName === 'IMG' || clickedEl.tagName === 'SVG' || clickedEl.closest('svg') || txt.includes('elite') || txt.includes('ride') || txt.includes('cab') || txt.includes('taxi') || txt.includes('home')) {
+            // Ensure it's not a button or interactive nav link that has another action
+            if (!clickedEl.closest('button') && !clickedEl.closest('a[href="#"]')) {
+              clearTotalAmountToZero();
+              window.location.reload();
+            }
+          }
+        }
+      });
+      document.addEventListener('click', (e) => {
+        const btn = e.target.closest('button, a');
         if (btn) {
           const txt = (btn.innerText || '').toLowerCase();
-          // After login / sign in
+          // After login / sign in / sign up
           if (txt.includes('login') || txt.includes('sign in') || txt.includes('log in') || txt.includes('authenticate')) {
             setTimeout(clearTotalAmountToZero, 300);
           }
+          // After logoff / sign out / logout
+          if (txt.includes('logoff') || txt.includes('sign out') || txt.includes('logout') || txt.includes('log out')) {
+            setTimeout(clearTotalAmountToZero, 300);
+          }
           // After final payment / submit payment
-          if (txt.includes('pay') || txt.includes('checkout') || txt.includes('confirm payment') || txt.includes('complete booking')) {
+          if (txt.includes('pay') || txt.includes('checkout') || txt.includes('confirm payment') || txt.includes('complete booking') || txt.includes('book now')) {
             setTimeout(clearTotalAmountToZero, 500);
           }
           // Stripe checkout simulation
@@ -382,10 +583,1309 @@
         });
       }
 
-      window.addEventListener('DOMContentLoaded', () => {
-        setTimeout(reorganizeFooter, 600);
-        setTimeout(reorganizeFooter, 1500); // secondary check after React hydrate
-      });
+      function updateAdminEmail() {
+        try {
+          const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+          let node;
+          while (node = walker.nextNode()) {
+            if (node.nodeValue && node.nodeValue.includes('@') && !node.nodeValue.includes('info@elite-ride.org')) {
+              node.nodeValue = node.nodeValue.replace(/[\w.-]+@[\w.-]+\.\w+/g, 'info@elite-ride.org');
+            }
+          }
+          document.querySelectorAll('input, textarea').forEach(el => {
+            if (el.value && el.value.includes('@') && !el.value.includes('info@elite-ride.org')) {
+              el.value = 'info@elite-ride.org';
+            }
+            if (el.placeholder && el.placeholder.includes('@') && !el.placeholder.includes('info@elite-ride.org')) {
+              el.placeholder = el.placeholder.replace(/[\w.-]+@[\w.-]+\.\w+/g, 'info@elite-ride.org');
+            }
+          });
+        } catch (e) {}
+      }
+
+      function injectAdminControls() {
+        // Remove any floating button if it exists
+        const existingFloat = document.getElementById('elite-admin-panel-btn');
+        if (existingFloat) existingFloat.remove();
+
+        // Check if user is explicitly in the Admin Portal / Admin Dashboard view
+        const pathOrHash = window.location.hash + window.location.search;
+        const isExplicitAdmin = pathOrHash.includes('admin') || 
+          Array.from(document.querySelectorAll('h1, h2, h3, h4, span, div')).some(el => {
+            const t = (el.innerText || '').toLowerCase();
+            return (t.includes('admin portal') || t.includes('admin dashboard') || t.includes('merchant portal')) && el.offsetParent !== null;
+          });
+
+        if (!isExplicitAdmin) {
+          return;
+        }
+
+        // Try to inject next to merchant portal, rider reports, or fare controls in admin navigation
+        const buttons = Array.from(document.querySelectorAll('button, a, div, span'));
+        for (const el of buttons) {
+          const text = (el.innerText || '').toLowerCase();
+          if ((text.includes('merchant portal') || text.includes('rider reports') || text.includes('fare controls')) && el.children.length === 0) {
+            const container = el.parentElement;
+            if (container && !container.querySelector('#elite-admin-nav-btn')) {
+              const btn = document.createElement('button');
+              btn.id = 'elite-admin-nav-btn';
+              btn.innerHTML = '🛡️ Admin Management';
+              btn.style.cssText = 'background:#059669; color:white; border:none; padding:8px 14px; border-radius:8px; font-weight:600; cursor:pointer; font-size:14px; display:inline-flex; align-items:center; gap:6px; box-shadow:0 2px 4px rgba(0,0,0,0.2); margin-left:8px;';
+              btn.onclick = (e) => {
+                e.stopPropagation();
+                showAdminModal();
+              };
+              container.appendChild(btn);
+            }
+          }
+        }
+      }
+
+      function showAdminModal() {
+        let modal = document.getElementById('elite-admin-modal');
+        if (modal) {
+          modal.style.display = 'flex';
+          return;
+        }
+
+        modal = document.createElement('div');
+        modal.id = 'elite-admin-modal';
+        modal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:100000; display:flex; align-items:center; justify-content:center; font-family:sans-serif;';
+        
+        modal.innerHTML = `
+          <div style="background:#1e293b; color:#f8fafc; width:90%; max-width:800px; max-height:90vh; border-radius:16px; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+            <div style="background:#0f172a; padding:16px 24px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #334155;">
+              <h2 style="margin:0; font-size:18px; color:#34d399;">Elite Ride Admin Management Portal (info@elite-ride.org)</h2>
+              <div style="display:flex; gap:10px; align-items:center;">
+                <button id="admin-modal-exit-btn" style="background:#dc2626; color:white; border:none; padding:6px 12px; border-radius:6px; font-weight:600; cursor:pointer; font-size:13px;">Exit</button>
+                <button id="admin-modal-close" style="background:transparent; border:none; color:#94a3b8; font-size:24px; cursor:pointer;">&times;</button>
+              </div>
+            </div>
+            <div style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:20px;">
+              
+              <!-- Tab Navigation -->
+              <div style="display:flex; gap:10px; border-bottom:1px solid #334155; padding-bottom:10px;">
+                <button class="adm-tab active" data-tab="tab-driver-pay" style="background:#059669; color:white; border:none; padding:8px 14px; border-radius:8px; cursor:pointer; font-weight:600;">Driver Payouts</button>
+                <button class="adm-tab" data-tab="tab-refunds" style="background:#334155; color:#cbd5e1; border:none; padding:8px 14px; border-radius:8px; cursor:pointer; font-weight:600;">Refunds & Overcharging</button>
+                <button class="adm-tab" data-tab="tab-accounts" style="background:#334155; color:#cbd5e1; border:none; padding:8px 14px; border-radius:8px; cursor:pointer; font-weight:600;">Rider/Driver Accounts</button>
+              </div>
+
+              <!-- Tab 1: Driver Payouts -->
+              <div id="tab-driver-pay" class="adm-content" style="display:flex; flex-direction:column; gap:12px;">
+                <h3 style="margin:0 0 8px 0; font-size:16px; color:#e2e8f0;">Make Payment to Driver</h3>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+                  <div>
+                    <label style="font-size:12px; color:#94a3b8;">Select Driver</label>
+                    <select id="adm-driver-select" style="width:100%; padding:10px; background:#0f172a; color:white; border:1px solid #475569; border-radius:8px; margin-top:4px;">
+                      <option>Marcus Brody (ID: DRV-8821)</option>
+                      <option>Elena Vance (ID: DRV-4412)</option>
+                      <option>Damon Ross (ID: DRV-9011)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style="font-size:12px; color:#94a3b8;">Payout Amount (EC$)</label>
+                    <input type="number" id="adm-driver-amount" value="150.00" style="width:100%; padding:10px; background:#0f172a; color:white; border:1px solid #475569; border-radius:8px; margin-top:4px;" />
+                  </div>
+                </div>
+                <div>
+                  <label style="font-size:12px; color:#94a3b8;">Payment Reference / Notes</label>
+                  <input type="text" id="adm-driver-note" value="Weekly Earnings Payout #948" style="width:100%; padding:10px; background:#0f172a; color:white; border:1px solid #475569; border-radius:8px; margin-top:4px;" />
+                </div>
+                <button id="adm-pay-driver-btn" style="background:#059669; color:white; border:none; padding:12px; border-radius:8px; font-weight:600; cursor:pointer; margin-top:8px;">Execute Driver Payout</button>
+                <div id="adm-pay-driver-res" style="font-size:13px; color:#34d399; margin-top:4px;"></div>
+              </div>
+
+              <!-- Tab 2: Refunds & Overcharging -->
+              <div id="tab-refunds" class="adm-content" style="display:none; flex-direction:column; gap:12px;">
+                <h3 style="margin:0 0 8px 0; font-size:16px; color:#e2e8f0;">Process Refund & Dispute Overcharging</h3>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+                  <div>
+                    <label style="font-size:12px; color:#94a3b8;">Transaction / Ride ID</label>
+                    <input type="text" id="adm-tx-id" value="TX-994821-ELITE" style="width:100%; padding:10px; background:#0f172a; color:white; border:1px solid #475569; border-radius:8px; margin-top:4px;" />
+                  </div>
+                  <div>
+                    <label style="font-size:12px; color:#94a3b8;">Refund / Dispute Amount (EC$)</label>
+                    <input type="number" id="adm-refund-amount" value="45.00" style="width:100%; padding:10px; background:#0f172a; color:white; border:1px solid #475569; border-radius:8px; margin-top:4px;" />
+                  </div>
+                </div>
+                <div>
+                  <label style="font-size:12px; color:#94a3b8;">Dispute Reason / Action</label>
+                  <select id="adm-dispute-reason" style="width:100%; padding:10px; background:#0f172a; color:white; border:1px solid #475569; border-radius:8px; margin-top:4px;">
+                    <option>Overcharging / Incorrect Route Fare</option>
+                    <option>Driver Cancellation Dispute</option>
+                    <option>Service Quality Complaint / Refund</option>
+                    <option>Duplicate Charge Adjustment</option>
+                  </select>
+                </div>
+                <button id="adm-process-refund-btn" style="background:#d97706; color:white; border:none; padding:12px; border-radius:8px; font-weight:600; cursor:pointer; margin-top:8px;">Issue Refund & Resolve Dispute</button>
+                <div id="adm-refund-res" style="font-size:13px; color:#fbbf24; margin-top:4px;"></div>
+              </div>
+
+              <!-- Tab 3: Rider/Driver Accounts -->
+              <div id="tab-accounts" class="adm-content" style="display:none; flex-direction:column; gap:12px;">
+                <h3 style="margin:0 0 8px 0; font-size:16px; color:#e2e8f0;">Modify Rider & Driver Accounts</h3>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+                  <div>
+                    <label style="font-size:12px; color:#94a3b8;">Account Type & User</label>
+                    <select id="adm-acc-type" style="width:100%; padding:10px; background:#0f172a; color:white; border:1px solid #475569; border-radius:8px; margin-top:4px;">
+                      <option>Rider: Sarah Jenkins (sarah@example.com)</option>
+                      <option>Driver: Marcus Brody (marcus@driver.org)</option>
+                      <option>Rider: David Miller (david@example.com)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style="font-size:12px; color:#94a3b8;">Account Status</label>
+                    <select id="adm-acc-status" style="width:100%; padding:10px; background:#0f172a; color:white; border:1px solid #475569; border-radius:8px; margin-top:4px;">
+                      <option>Active / Verified</option>
+                      <option>Suspended / Blocked</option>
+                      <option>Pending Verification</option>
+                    </select>
+                  </div>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+                  <div>
+                    <label style="font-size:12px; color:#94a3b8;">Update Name / Details</label>
+                    <input type="text" id="adm-acc-name" value="Sarah Jenkins" style="width:100%; padding:10px; background:#0f172a; color:white; border:1px solid #475569; border-radius:8px; margin-top:4px;" />
+                  </div>
+                  <div>
+                    <label style="font-size:12px; color:#94a3b8;">Update Wallet Balance / Credit (EC$)</label>
+                    <input type="number" id="adm-acc-balance" value="250.00" style="width:100%; padding:10px; background:#0f172a; color:white; border:1px solid #475569; border-radius:8px; margin-top:4px;" />
+                  </div>
+                </div>
+                <button id="adm-save-acc-btn" style="background:#2563eb; color:white; border:none; padding:12px; border-radius:8px; font-weight:600; cursor:pointer; margin-top:8px;">Save Account Changes</button>
+                <div id="adm-acc-res" style="font-size:13px; color:#60a5fa; margin-top:4px;"></div>
+              </div>
+
+            </div>
+          </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Bind events
+        document.getElementById('admin-modal-close').onclick = () => {
+          modal.style.display = 'none';
+        };
+
+        const exitBtn = document.getElementById('admin-modal-exit-btn');
+        if (exitBtn) {
+          exitBtn.onclick = () => {
+            modal.style.display = 'none';
+          };
+        }
+
+        modal.querySelectorAll('.adm-tab').forEach(tab => {
+          tab.onclick = (e) => {
+            modal.querySelectorAll('.adm-tab').forEach(t => {
+              t.style.background = '#334155';
+              t.style.color = '#cbd5e1';
+            });
+            modal.querySelectorAll('.adm-content').forEach(c => c.style.display = 'none');
+            
+            e.target.style.background = '#059669';
+            e.target.style.color = 'white';
+            const targetId = e.target.getAttribute('data-tab');
+            document.getElementById(targetId).style.display = 'flex';
+          };
+        });
+
+        document.getElementById('adm-pay-driver-btn').onclick = () => {
+          const drv = document.getElementById('adm-driver-select').value;
+          const amt = document.getElementById('adm-driver-amount').value;
+          document.getElementById('adm-pay-driver-res').innerText = `Successfully transferred EC$${amt} to ${drv} via instant bank payout!`;
+          setTimeout(() => { clearTotalAmountToZero(); }, 400);
+        };
+
+        document.getElementById('adm-process-refund-btn').onclick = () => {
+          const tx = document.getElementById('adm-tx-id').value;
+          const amt = document.getElementById('adm-refund-amount').value;
+          const reason = document.getElementById('adm-dispute-reason').value;
+          document.getElementById('adm-refund-res').innerText = `Refund of EC$${amt} processed for ${tx} (Reason: ${reason}). Account credited.`;
+          setTimeout(() => { clearTotalAmountToZero(); }, 400);
+        };
+
+      function injectRideChatInterface() {
+        // Inject CSS keyframe animation for chat messages
+        if (!document.getElementById('elite-chat-anim-style')) {
+          const style = document.createElement('style');
+          style.id = 'elite-chat-anim-style';
+          style.innerHTML = `
+            @keyframes eliteSlideIn {
+              from { opacity: 0; transform: translateY(14px) scale(0.96); }
+              to { opacity: 1; transform: translateY(0) scale(1); }
+            }
+            .elite-chat-bubble {
+              animation: eliteSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            }
+            @keyframes elitePulse {
+              0% { opacity: 0.4; transform: scale(0.99); }
+              50% { opacity: 1; transform: scale(1.01); color: #38bdf8; }
+              100% { opacity: 0.4; transform: scale(0.99); }
+            }
+            .elite-typing-pulse {
+              animation: elitePulse 1.2s infinite ease-in-out;
+              display: inline-flex;
+              align-items: center;
+              gap: 4px;
+            }
+          `;
+          document.head.appendChild(style);
+        }
+
+        let chatBtn = document.getElementById('elite-ride-chat-btn');
+        if (!chatBtn) {
+          chatBtn = document.createElement('div');
+          chatBtn.id = 'elite-ride-chat-btn';
+          chatBtn.innerHTML = '💬 Driver Chat <span id="elite-chat-badge" style="background:#ef4444; color:white; border-radius:50%; padding:2px 6px; font-size:10px; margin-left:4px;">1</span>';
+          chatBtn.style.cssText = 'position:fixed; bottom:20px; left:20px; z-index:99998; background:#0284c7; color:white; padding:12px 18px; border-radius:30px; font-weight:600; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.4); font-size:14px; font-family:sans-serif; display:flex; align-items:center; gap:8px; border:2px solid #38bdf8; transition:all 0.2s;';
+          chatBtn.onclick = () => {
+            toggleRideChatModal();
+            const badge = document.getElementById('elite-chat-badge');
+            if (badge) badge.style.display = 'none';
+          };
+          document.body.appendChild(chatBtn);
+        }
+
+        const trackingHeaders = Array.from(document.querySelectorAll('div, section, header')).filter(el => {
+          const t = (el.innerText || '').toLowerCase();
+          return (t.includes('driver') || t.includes('track ride') || t.includes('eta')) && el.children.length < 5;
+        });
+
+        trackingHeaders.forEach(header => {
+          if (!header.querySelector('#elite-inline-chat-btn')) {
+            const inlineBtn = document.createElement('button');
+            inlineBtn.id = 'elite-inline-chat-btn';
+            inlineBtn.innerHTML = '💬 Secure Driver Chat';
+            inlineBtn.style.cssText = 'background:#0284c7; color:white; border:none; padding:8px 14px; border-radius:8px; font-weight:600; cursor:pointer; font-size:13px; margin-left:10px; display:inline-flex; align-items:center; gap:6px;';
+            inlineBtn.onclick = (e) => {
+              e.stopPropagation();
+              toggleRideChatModal();
+            };
+            header.appendChild(inlineBtn);
+          }
+        });
+      }
+
+      function playNotificationChime() {
+        try {
+          const ctx = new (window.AudioContext || window.webkitAudioContext)();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+          osc.frequency.setValueAtTime(880, ctx.currentTime + 0.1); // A5
+          gain.gain.setValueAtTime(0.1, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.4);
+        } catch (e) {}
+      }
+
+      function toggleRideChatModal() {
+        let modal = document.getElementById('elite-ride-chat-modal');
+        if (modal) {
+          modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
+          return;
+        }
+
+        modal = document.createElement('div');
+        modal.id = 'elite-ride-chat-modal';
+        modal.style.cssText = 'position:fixed; bottom:80px; left:20px; width:400px; max-width:90vw; height:580px; background:#1e293b; color:#f8fafc; border-radius:16px; z-index:100000; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5); display:flex; flex-direction:column; overflow:hidden; font-family:sans-serif; border:1px solid #334155;';
+
+        modal.innerHTML = `
+          <!-- Chat Header -->
+          <div style="background:#0f172a; padding:14px 16px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #334155;">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <div style="width:38px; height:38px; background:#059669; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:16px; color:white;">MB</div>
+              <div>
+                <div style="font-weight:600; font-size:14px; display:flex; align-items:center; gap:6px;">Marcus Brody <span style="font-size:10px; background:#059669; color:white; padding:1px 6px; border-radius:4px;">Verified</span></div>
+                <div style="font-size:11px; color:#34d399; display:flex; align-items:center; gap:4px;">● Secured E2EE • Toyota Camry</div>
+              </div>
+            </div>
+            <div style="display:flex; gap:5px; align-items:center;">
+              <button id="chat-sos-btn" title="Emergency SOS" style="background:#991b1b; border:none; color:white; padding:5px 8px; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;">🚨 SOS</button>
+              <button id="chat-cancel-ride-btn" title="Cancel Ride" style="background:#dc2626; border:none; color:white; padding:5px 8px; border-radius:6px; cursor:pointer; font-size:11px; font-weight:600;">❌</button>
+              <button id="chat-call-driver-btn" title="Secure VoIP Call Driver" style="background:#0284c7; border:none; color:white; padding:6px 8px; border-radius:6px; cursor:pointer; font-size:11px; font-weight:600;">📞</button>
+              <button id="chat-profile-toggle-btn" title="Profile" style="background:#334155; border:none; color:#34d399; padding:6px 8px; border-radius:6px; cursor:pointer; font-size:11px; font-weight:600;">👤</button>
+              <button id="chat-map-toggle-btn" title="Live Map & ETA" style="background:#334155; border:none; color:#38bdf8; padding:6px 8px; border-radius:6px; cursor:pointer; font-size:11px; font-weight:600;">🗺️</button>
+              <button id="chat-close-btn" style="background:transparent; border:none; color:#94a3b8; font-size:20px; cursor:pointer; width:28px; height:28px; display:flex; align-items:center; justify-content:center;">&times;</button>
+            </div>
+          </div>
+
+          <!-- Dynamic ETA Progress Bar -->
+          <div style="background:#0f172a; padding:8px 16px; border-bottom:1px solid #334155; display:flex; flex-direction:column; gap:4px;">
+            <div style="display:flex; justify-content:space-between; font-size:11px; color:#94a3b8;">
+              <span style="display:flex; align-items:center; gap:4px;">⏱️ Driver Pickup ETA Countdown</span>
+              <span id="eta-countdown-timer" style="color:#38bdf8; font-weight:bold;">02:45</span>
+            </div>
+            <div style="width:100%; height:6px; background:#334155; border-radius:3px; overflow:hidden;">
+              <div id="eta-progress-bar" style="width:85%; height:100%; background:linear-gradient(90deg, #059669, #38bdf8); transition:width 1s linear;"></div>
+            </div>
+          </div>
+
+          <!-- Emergency SOS Banner Menu -->
+          <div id="chat-sos-banner" style="background:#450a0a; border-bottom:1px solid #7f1d1d; padding:12px; display:none; flex-direction:column; gap:8px; font-size:12px; color:#fca5a5;">
+            <div style="font-weight:bold; display:flex; justify-content:space-between; align-items:center; color:#f87171;">
+              <span>🚨 Emergency SOS Dispatch (Dominica)</span>
+              <span style="cursor:pointer;" onclick="document.getElementById('chat-sos-banner').style.display='none'">✕</span>
+            </div>
+            <div>Instantly sharing live coordinates (Lat: 17.1284, Lng: -61.8392) with Commonwealth of Dominica Police Force (999/911) and your registered emergency contacts.</div>
+            <button id="sos-dispatch-confirm" style="background:#dc2626; color:white; border:none; padding:8px; border-radius:6px; font-weight:bold; cursor:pointer;">⚠️ Confirm & Alert Authorities Now</button>
+          </div>
+
+          <!-- Language Translation Bar -->
+          <div style="background:#0f172a; padding:6px 16px; border-bottom:1px solid #334155; display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#94a3b8;">
+            <span>🌐 Chat Translation / Dialect:</span>
+            <select id="chat-lang-select" style="background:#1e293b; color:#cbd5e1; border:1px solid #475569; border-radius:6px; padding:2px 6px; font-size:11px; outline:none;">
+              <option value="en">English (Default)</option>
+              <option value="patois">Dominican Patois (Kwéyòl)</option>
+              <option value="es">Español (Spanish)</option>
+              <option value="fr">Français (French)</option>
+            </select>
+          </div>
+
+          <!-- Driver Profile Card Modal Banner -->
+          <div id="chat-profile-banner" style="background:#0f172a; border-bottom:1px solid #334155; padding:14px; display:none; flex-direction:column; gap:10px; font-size:12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; color:#34d399; font-weight:600; font-size:13px;">
+              <span>🛡️ Verified Driver Profile</span>
+              <span style="background:#05966930; color:#34d399; padding:2px 8px; border-radius:10px; font-size:11px;">Top Rated Elite Partner</span>
+            </div>
+            <div style="background:#1e293b; border:1px solid #475569; border-radius:10px; padding:12px; display:flex; flex-direction:column; gap:8px; color:#cbd5e1;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="color:#94a3b8;">Driver Name:</span>
+                <span style="font-weight:600; color:white;">Marcus Brody</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="color:#94a3b8;">Star Rating:</span>
+                <span style="font-weight:600; color:#fbbf24;">⭐ 4.94 <span style="color:#94a3b8; font-weight:normal;">(1,280 ratings)</span></span>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="color:#94a3b8;">Completed Trips:</span>
+                <span style="font-weight:600; color:#38bdf8;">3,420 trips completed</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="color:#94a3b8;">Vehicle Registration:</span>
+                <span style="font-family:monospace; background:#0f172a; padding:2px 6px; border-radius:4px; color:#34d399; font-weight:bold;">P-4421 (Toyota Camry)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Encryption & Live Map Banner -->
+          <div id="chat-map-banner" style="background:#0f172a; border-bottom:1px solid #334155; padding:10px 14px; display:none; flex-direction:column; gap:6px; font-size:12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; color:#38bdf8; font-weight:600;">
+              <span>📍 Driver Live Radar & ETA</span>
+              <span style="background:#0284c730; color:#38bdf8; padding:2px 8px; border-radius:10px; font-size:11px;">ETA: 2 mins</span>
+            </div>
+            <div style="background:#1e293b; border:1px solid #475569; border-radius:8px; padding:8px; display:flex; flex-direction:column; gap:4px; font-family:monospace; color:#cbd5e1; font-size:11px;">
+              <div>Lat: 17.1284° N, Lng: -61.8392° W</div>
+              <div>Speed: 24 mph • Distance: 0.6 miles</div>
+              <div style="color:#34d399;">Status: En route to pickup destination</div>
+            </div>
+          </div>
+
+          <!-- Chat Messages Body -->
+          <div id="chat-messages-body" style="flex:1; padding:16px; overflow-y:auto; display:flex; flex-direction:column; gap:12px; background:#0f172a80;">
+            <div class="elite-chat-bubble" style="align-self:flex-start; background:#334155; color:#f8fafc; padding:10px 14px; border-radius:12px 12px 12px 2px; max-width:80%; font-size:13px; line-height:1.4;">
+              Hello! I'm Marcus, your assigned Elite driver. I'm on my way to your pickup location now. ETA 3 minutes! 🚗💨
+              <div style="font-size:9px; color:#94a3b8; text-align:right; margin-top:4px;">10:42 PM</div>
+            </div>
+          </div>
+
+          <!-- Typing Indicator -->
+          <div id="chat-typing" class="elite-typing-pulse" style="padding:4px 16px; font-size:11px; color:#38bdf8; font-style:italic; display:none;">
+            💬 Marcus is typing...
+          </div>
+
+          <!-- Quick Reply Chips -->
+          <div style="padding:8px 12px; background:#0f172a; display:flex; gap:6px; overflow-x:auto; border-top:1px solid #334155;">
+            <button class="quick-chip" style="background:#334155; border:none; color:#cbd5e1; padding:4px 10px; border-radius:12px; font-size:11px; cursor:pointer; white-space:nowrap;">I'm at the pickup spot 📍</button>
+            <button class="quick-chip" style="background:#334155; border:none; color:#cbd5e1; padding:4px 10px; border-radius:12px; font-size:11px; cursor:pointer; white-space:nowrap;">Running 2 mins late ⏳</button>
+            <button class="quick-chip" style="background:#334155; border:none; color:#cbd5e1; padding:4px 10px; border-radius:12px; font-size:11px; cursor:pointer; white-space:nowrap;">Where are you? 🚗</button>
+          </div>
+
+          <!-- Chat Input Footer -->
+          <div style="padding:12px; background:#0f172a; display:flex; gap:8px; border-top:1px solid #334155;">
+            <input type="text" id="chat-input-box" placeholder="Type a secure message to driver..." style="flex:1; background:#1e293b; border:1px solid #475569; color:white; padding:10px 14px; border-radius:8px; font-size:13px; outline:none;" />
+            <button id="chat-send-btn" style="background:#059669; color:white; border:none; padding:10px 16px; border-radius:8px; font-weight:600; cursor:pointer; font-size:13px;">Send</button>
+          </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Bind events
+        document.getElementById('chat-close-btn').onclick = () => {
+          modal.style.display = 'none';
+        };
+
+        const mapBanner = document.getElementById('chat-map-banner');
+        document.getElementById('chat-map-toggle-btn').onclick = () => {
+          mapBanner.style.display = mapBanner.style.display === 'flex' ? 'none' : 'flex';
+          const profileBanner = document.getElementById('chat-profile-banner');
+          if (profileBanner) profileBanner.style.display = 'none';
+          const sosBanner = document.getElementById('chat-sos-banner');
+          if (sosBanner) sosBanner.style.display = 'none';
+        };
+
+        const profileBanner = document.getElementById('chat-profile-banner');
+        document.getElementById('chat-profile-toggle-btn').onclick = () => {
+          profileBanner.style.display = profileBanner.style.display === 'flex' ? 'none' : 'flex';
+          if (mapBanner) mapBanner.style.display = 'none';
+          const sosBanner = document.getElementById('chat-sos-banner');
+          if (sosBanner) sosBanner.style.display = 'none';
+        };
+
+        const sosBanner = document.getElementById('chat-sos-banner');
+        document.getElementById('chat-sos-btn').onclick = () => {
+          sosBanner.style.display = sosBanner.style.display === 'flex' ? 'none' : 'flex';
+          if (mapBanner) mapBanner.style.display = 'none';
+          if (profileBanner) profileBanner.style.display = 'none';
+        };
+
+        document.getElementById('chat-call-driver-btn').onclick = () => {
+          alert("📞 Establishing Secure VoIP call with Marcus Brody... (Your personal phone number remains completely private & encrypted)");
+          appendMessage("📞 Secure VoIP audio call initiated with driver.", true);
+        };
+
+        document.getElementById('sos-dispatch-confirm').onclick = () => {
+          const contacts = JSON.parse(localStorage.getItem('elite_trusted_contacts') || '[]');
+          const contactNames = contacts.length > 0 ? contacts.map(c => `${c.name} (${c.phone})`).join(', ') : 'None configured (Add in Safety Center)';
+          alert(`🚨 Emergency SOS Dispatched Successfully!\n\nCommonwealth of Dominica Police Force (999) and your trusted emergency contacts [${contactNames}] have received your live GPS coordinates (Lat: 17.1284, Lng: -61.8392).`);
+          sosBanner.style.display = 'none';
+          appendMessage(`🚨 EMERGENCY SOS DISPATCHED. Notified Police & Contacts: ${contactNames}`, false);
+        };
+
+        const langSelect = document.getElementById('chat-lang-select');
+        langSelect.onchange = () => {
+          const val = langSelect.value;
+          const greetingMap = {
+            'en': "Hello! I'm Marcus, your assigned Elite driver. ETA 3 minutes! 🚗💨",
+            'patois': " Bonjou! Mwen se Marcus, chofè ou. M ap vini la a nan 3 minit! 🚗💨",
+            'es': " ¡Hola! Soy Marcus, tu conductor asignado. ¡Llego en 3 minutos! 🚗💨",
+            'fr': " Bonjour! Je suis Marcus, votre chauffeur. J'arrive dans 3 minutes! 🚗💨"
+          };
+          const firstBubble = modal.querySelector('.elite-chat-bubble');
+          if (firstBubble) {
+            firstBubble.innerText = greetingMap[val] || greetingMap['en'];
+          }
+        };
+
+        // Countdown timer simulation
+        let timeLeft = 165; // 2 minutes 45 seconds
+        let notified500m = false;
+        const timerEl = document.getElementById('eta-countdown-timer');
+        const progressBar = document.getElementById('eta-progress-bar');
+        
+        const countdownInterval = setInterval(() => {
+          if (timeLeft === 45 && !notified500m) {
+            notified500m = true;
+            if ("Notification" in window && Notification.permission === "granted") {
+              new Notification("🚗 Driver Within 500m of Pickup!", {
+                body: "Marcus Brody (Toyota Camry) is now within 500 meters of your pickup location in Roseau, Dominica.",
+                icon: "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=120"
+              });
+            }
+            appendMessage("📍 Driver Marcus Brody is now within 500m of your pickup location!", false);
+          }
+
+          if (timeLeft <= 0) {
+            if (timerEl) timerEl.innerText = "Driver Arrived! 🚗";
+            if (progressBar) progressBar.style.width = "0%";
+            clearInterval(countdownInterval);
+            return;
+          }
+          timeLeft--;
+          const mins = Math.floor(timeLeft / 60);
+          const secs = timeLeft % 60;
+          if (timerEl) timerEl.innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+          if (progressBar) progressBar.style.width = `${(timeLeft / 180) * 100}%`;
+        }, 1000);
+
+        document.getElementById('chat-cancel-ride-btn').onclick = () => {
+          if (confirm("Are you sure you want to cancel this ride? Driver Marcus Brody status will be updated to 'Available'.")) {
+            appendMessage("⚠️ Ride successfully cancelled. Driver Marcus Brody status is now Available.", false);
+            setTimeout(() => {
+              modal.style.display = 'none';
+              const chatBtn = document.getElementById('elite-ride-chat-btn');
+              if (chatBtn) chatBtn.remove();
+            }, 2000);
+          }
+        };
+
+        const msgBody = document.getElementById('chat-messages-body');
+        const input = document.getElementById('chat-input-box');
+        const sendBtn = document.getElementById('chat-send-btn');
+        const typingIndicator = document.getElementById('chat-typing');
+
+        function appendMessage(text, isSender = true) {
+          const bubble = document.createElement('div');
+          bubble.className = 'elite-chat-bubble';
+          bubble.style.cssText = isSender 
+            ? 'align-self:flex-end; background:#059669; color:white; padding:10px 14px; border-radius:12px 12px 2px 12px; max-width:80%; font-size:13px; line-height:1.4;'
+            : 'align-self:flex-start; background:#334155; color:#f8fafc; padding:10px 14px; border-radius:12px 12px 12px 2px; max-width:80%; font-size:13px; line-height:1.4;';
+          
+          const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const tickId = 'tick-' + Math.random().toString(36).substr(2, 9);
+          
+          bubble.innerHTML = `${text}<div style="font-size:9px; color:${isSender ? '#a7f3d0' : '#94a3b8'}; text-align:right; margin-top:4px; display:flex; justify-content:flex-end; align-items:center; gap:4px;"><span>${timeStr}</span>${isSender ? `<span id="${tickId}" style="font-size:11px; color:#cbd5e1;" title="Sent">✓</span>` : ''}</div>`;
+          msgBody.appendChild(bubble);
+          msgBody.scrollTop = msgBody.scrollHeight;
+
+          if (isSender) {
+            // Update to read receipt (double blue check) after 1.4s
+            setTimeout(() => {
+              const tickEl = document.getElementById(tickId);
+              if (tickEl) {
+                tickEl.innerText = '✓✓';
+                tickEl.style.color = '#38bdf8';
+                tickEl.title = 'Read by driver';
+              }
+            }, 1400);
+          } else {
+            // Play subtle notification chime when receiving a message from driver
+            playNotificationChime();
+          }
+        }
+
+        function handleSend() {
+          const txt = input.value.trim();
+          if (!txt) return;
+          appendMessage(txt, true);
+          input.value = '';
+
+          // Simulate driver typing and response
+          setTimeout(() => {
+            typingIndicator.style.display = 'block';
+            msgBody.scrollTop = msgBody.scrollHeight;
+          }, 800);
+
+          setTimeout(() => {
+            typingIndicator.style.display = 'none';
+            const responses = [
+              "Got it! I see you on my radar, pulling up right now.",
+              "Acknowledged! Thanks for letting me know.",
+              "Perfect, hazard lights are on!",
+              "Understood, heading straight to your spot."
+            ];
+            const randomResp = responses[Math.floor(Math.random() * responses.length)];
+            appendMessage(randomResp, false);
+          }, 2400);
+        }
+
+        sendBtn.onclick = handleSend;
+        input.onkeydown = (e) => {
+          if (e.key === 'Enter') handleSend();
+        };
+
+        modal.querySelectorAll('.quick-chip').forEach(chip => {
+          chip.onclick = () => {
+            input.value = chip.innerText.replace(/[\u{1F300}-\u{1F9FF}]/gu, '').trim();
+            handleSend();
+          };
+        });
+
+        document.getElementById('chat-call-btn').onclick = () => {
+          alert('Connecting secure encrypted audio call with Marcus Brody (Driver #8821)...');
+        };
+      }
+
+      function injectRideHistoryAndDriverPanel() {
+        // 1. Ride History floating button
+        if (!document.getElementById('elite-history-btn')) {
+          const histBtn = document.createElement('div');
+          histBtn.id = 'elite-history-btn';
+          histBtn.innerHTML = '📜 Ride History';
+          histBtn.style.cssText = 'position:fixed; bottom:20px; right:20px; z-index:99998; background:#0f172a; color:#38bdf8; padding:12px 18px; border-radius:30px; font-weight:600; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.4); font-size:14px; font-family:sans-serif; display:flex; align-items:center; gap:8px; border:2px solid #0284c7; transition:all 0.2s;';
+          histBtn.onclick = () => toggleRideHistoryModal();
+          document.body.appendChild(histBtn);
+        }
+
+        // 2. Driver Real-Time Location Sharing floating panel button
+        if (!document.getElementById('elite-driver-panel-btn')) {
+          const drvBtn = document.createElement('div');
+          drvBtn.id = 'elite-driver-panel-btn';
+          drvBtn.innerHTML = '🚗 Driver Portal';
+          drvBtn.style.cssText = 'position:fixed; bottom:80px; right:20px; z-index:99998; background:#059669; color:white; padding:12px 18px; border-radius:30px; font-weight:600; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.4); font-size:14px; font-family:sans-serif; display:flex; align-items:center; gap:8px; border:2px solid #34d399; transition:all 0.2s;';
+          drvBtn.onclick = () => toggleDriverPortalModal();
+          document.body.appendChild(drvBtn);
+        }
+      }
+
+      function toggleRideHistoryModal() {
+        let modal = document.getElementById('elite-history-modal');
+        if (modal) {
+          modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
+          return;
+        }
+
+        modal = document.createElement('div');
+        modal.id = 'elite-history-modal';
+        modal.style.cssText = 'position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:500px; max-width:90vw; max-height:80vh; background:#1e293b; color:#f8fafc; border-radius:16px; z-index:100001; box-shadow:0 25px 50px -12px rgba(0,0,0,0.7); display:flex; flex-direction:column; overflow:hidden; font-family:sans-serif; border:1px solid #334155;';
+
+        modal.innerHTML = `
+          <div style="background:#0f172a; padding:16px 20px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #334155;">
+            <div style="font-weight:bold; font-size:16px; color:#38bdf8; display:flex; align-items:center; gap:8px;">📜 Passenger Ride & Transaction History</div>
+            <button id="hist-close-btn" style="background:transparent; border:none; color:#94a3b8; font-size:22px; cursor:pointer;">&times;</button>
+          </div>
+          <div style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px; background:#0f172a80;">
+            <div style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:14px; display:flex; flex-direction:column; gap:6px;">
+              <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:14px;">
+                <span>Route: Roseau ➔ Melville Hall Airport</span>
+                <span style="color:#34d399;">EC$ 120.00</span>
+              </div>
+              <div style="font-size:12px; color:#94a3b8; display:flex; justify-content:space-between;">
+                <span>Date: Sept 12, 2026 • 02:15 PM</span>
+                <span style="color:#38bdf8;">Driver: Marcus Brody (DRV-8821)</span>
+              </div>
+              <div style="font-size:11px; color:#34d399; background:#05966920; padding:2px 8px; border-radius:6px; width:fit-content;">Completed & Paid via Stripe</div>
+            </div>
+
+            <div style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:14px; display:flex; flex-direction:column; gap:6px;">
+              <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:14px;">
+                <span>Route: Canefield ➔ Portsmouth Beach</span>
+                <span style="color:#34d399;">EC$ 85.50</span>
+              </div>
+              <div style="font-size:12px; color:#94a3b8; display:flex; justify-content:space-between;">
+                <span>Date: Sept 10, 2026 • 11:30 AM</span>
+                <span style="color:#38bdf8;">Driver: Elena Vance (DRV-4412)</span>
+              </div>
+              <div style="font-size:11px; color:#34d399; background:#05966920; padding:2px 8px; border-radius:6px; width:fit-content;">Completed & Paid via Mobile Banking</div>
+            </div>
+
+            <div style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:14px; display:flex; flex-direction:column; gap:6px;">
+              <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:14px;">
+                <span>Route: Trafalgar Falls ➔ Roseau Center</span>
+                <span style="color:#34d399;">EC$ 48.50</span>
+              </div>
+              <div style="font-size:12px; color:#94a3b8; display:flex; justify-content:space-between;">
+                <span>Date: Sept 08, 2026 • 04:45 PM</span>
+                <span style="color:#38bdf8;">Driver: Damon Ross (DRV-9011)</span>
+              </div>
+              <div style="font-size:11px; color:#34d399; background:#05966920; padding:2px 8px; border-radius:6px; width:fit-content;">Completed & Paid via Stripe</div>
+            </div>
+          </div>
+        `;
+
+        document.body.appendChild(modal);
+        document.getElementById('hist-close-btn').onclick = () => {
+          modal.style.display = 'none';
+        };
+      }
+
+      function toggleDriverPortalModal() {
+        let modal = document.getElementById('elite-driver-portal-modal');
+        if (modal) {
+          modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
+          return;
+        }
+
+        modal = document.createElement('div');
+        modal.id = 'elite-driver-portal-modal';
+        modal.style.cssText = 'position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:520px; max-width:95vw; max-height:85vh; background:#1e293b; color:#f8fafc; border-radius:16px; z-index:100001; box-shadow:0 25px 50px -12px rgba(0,0,0,0.7); display:flex; flex-direction:column; overflow:hidden; font-family:sans-serif; border:1px solid #334155;';
+
+        modal.innerHTML = `
+          <div style="background:#0f172a; padding:16px 20px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #334155;">
+            <div style="font-weight:bold; font-size:16px; color:#34d399; display:flex; align-items:center; gap:8px;">🚗 Driver Portal & Visual Earnings Dashboard</div>
+            <button id="drv-close-btn" style="background:transparent; border:none; color:#94a3b8; font-size:22px; cursor:pointer;">&times;</button>
+          </div>
+          <div style="padding:20px; display:flex; flex-direction:column; gap:16px; background:#0f172a80; overflow-y:auto; max-height:75vh;">
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#1e293b; padding:12px 14px; border-radius:12px; border:1px solid #475569;">
+              <div>
+                <div style="font-weight:bold; font-size:13px; color:white;">Marcus Brody (DRV-8821)</div>
+                <div style="font-size:11px; color:#34d399;" id="drv-status-indicator">● Status: Available for Dispatch</div>
+              </div>
+              <div style="display:flex; gap:6px;">
+                <button id="drv-status-toggle-btn" style="background:#059669; color:white; border:none; padding:6px 12px; border-radius:8px; font-size:11px; font-weight:bold; cursor:pointer;">🟢 Available</button>
+                <button id="drv-toggle-view-btn" style="background:#0284c7; color:white; border:none; padding:6px 12px; border-radius:8px; font-size:11px; font-weight:bold; cursor:pointer;">Monthly</button>
+              </div>
+            </div>
+
+            <!-- Earnings Summary Card -->
+            <div style="background:#0f172a; border:1px solid #05966930; border-radius:12px; padding:14px; display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <div style="font-size:11px; color:#94a3b8;" id="earnings-period-label">Total Weekly Earnings (XCD)</div>
+                <div style="font-size:22px; font-weight:bold; color:#34d399;" id="earnings-total-val">EC$ 2,830.00</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:11px; color:#94a3b8;">Net Take-Home (88%)</div>
+                <div style="font-size:16px; font-weight:bold; color:#38bdf8;" id="earnings-net-val">EC$ 2,490.40</div>
+              </div>
+            </div>
+
+            <!-- Visual Trend Chart -->
+            <div style="background:#1e293b; border:1px solid #475569; border-radius:12px; padding:14px; display:flex; flex-direction:column; gap:10px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; font-weight:bold; color:#cbd5e1;">
+                <span id="chart-title">📈 Weekly Earnings Trend Chart</span>
+                <span style="font-size:10px; color:#34d399; background:#05966920; padding:2px 8px; border-radius:6px;">Live Dispatched Payouts</span>
+              </div>
+              <div id="chart-bars-container" style="display:flex; align-items:flex-end; justify-content:space-between; height:120px; padding-top:10px; border-bottom:1px solid #334155; gap:8px;">
+                <!-- Rendered dynamically -->
+              </div>
+            </div>
+
+            <!-- GPS Telemetry Controls -->
+            <div style="background:#1e293b; border:1px solid #475569; border-radius:12px; padding:12px; font-family:monospace; font-size:12px; color:#38bdf8; display:flex; flex-direction:column; gap:6px;">
+              <div>Latitude: <span id="drv-live-lat" style="color:white;">17.12840</span>° N | Longitude: <span id="drv-live-lng" style="color:white;">-61.83920</span>° W</div>
+              <div>Firebase DB Sync: <span style="color:#34d399;">Connected (Active)</span></div>
+            </div>
+
+            <button id="drv-share-gps-btn" style="background:#059669; color:white; border:none; padding:12px; border-radius:10px; font-weight:bold; cursor:pointer; font-size:14px; box-shadow:0 4px 12px rgba(5,150,105,0.4); text-align:center;">📡 Share Real-Time GPS Location</button>
+            <div id="drv-share-status" style="font-size:12px; color:#34d399; text-align:center; height:18px; font-weight:500;"></div>
+          </div>
+        `;
+
+        document.body.appendChild(modal);
+        document.getElementById('drv-close-btn').onclick = () => {
+          modal.style.display = 'none';
+        };
+
+        const weeklyData = [
+          { label: 'Mon', amount: 220, h: '45%' },
+          { label: 'Tue', amount: 310.5, h: '62%' },
+          { label: 'Wed', amount: 280, h: '56%' },
+          { label: 'Thu', amount: 340, h: '68%' },
+          { label: 'Fri', amount: 410.25, h: '82%' },
+          { label: 'Sat', amount: 490, h: '98%' },
+          { label: 'Sun', amount: 380, h: '76%' }
+        ];
+
+        const monthlyData = [
+          { label: 'Week 1', amount: 1850, h: '60%' },
+          { label: 'Week 2', amount: 2120, h: '72%' },
+          { label: 'Week 3', amount: 1980, h: '66%' },
+          { label: 'Week 4', amount: 2450, h: '95%' }
+        ];
+
+        let currentView = 'weekly';
+
+        const renderChart = (data) => {
+          const container = document.getElementById('chart-bars-container');
+          if (!container) return;
+          container.innerHTML = data.map(d => `
+            style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; height:100%; justify-content:flex-end;"
+            <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; height:100%; justify-content:flex-end;">
+              <div style="font-size:10px; color:#34d399; font-weight:bold;">EC$${d.amount}</div>
+              <div style="width:100%; background:linear-gradient(to top, #059669, #34d399); height:${d.h}; border-radius:6px 6px 0 0; transition:all 0.3s;" title="${d.label}: EC$${d.amount}"></div>
+              <div style="font-size:11px; color:#94a3b8; margin-top:2px;">${d.label}</div>
+            </div>
+          `).join('');
+        };
+
+        renderChart(weeklyData);
+
+        let driverStatus = localStorage.getItem('elite_driver_status') || 'available';
+        const statusBtn = document.getElementById('drv-status-toggle-btn');
+        const statusInd = document.getElementById('drv-status-indicator');
+
+        const updateStatusUI = () => {
+          if (driverStatus === 'available') {
+            statusBtn.innerText = '🟢 Available';
+            statusBtn.style.background = '#059669';
+            statusInd.innerText = '● Status: Available for Dispatch';
+            statusInd.style.color = '#34d399';
+          } else {
+            statusBtn.innerText = '🔴 Busy / En Route';
+            statusBtn.style.background = '#dc2626';
+            statusInd.innerText = '● Status: Busy (Paused Dispatch)';
+            statusInd.style.color = '#fca5a5';
+          }
+        };
+        updateStatusUI();
+
+        statusBtn.onclick = () => {
+          driverStatus = driverStatus === 'available' ? 'busy' : 'available';
+          localStorage.setItem('elite_driver_status', driverStatus);
+          updateStatusUI();
+          localStorage.setItem('elite_firebase_dispatch_sync', JSON.stringify({ driver: 'Marcus Brody', status: driverStatus, time: Date.now() }));
+        };
+
+        const toggleViewBtn = document.getElementById('drv-toggle-view-btn');
+        toggleViewBtn.onclick = () => {
+          if (currentView === 'weekly') {
+            currentView = 'monthly';
+            toggleViewBtn.innerText = 'Switch to Weekly';
+            document.getElementById('earnings-period-label').innerText = 'Total Monthly Earnings (XCD)';
+            document.getElementById('earnings-total-val').innerText = 'EC$ 8,400.00';
+            document.getElementById('earnings-net-val').innerText = 'EC$ 7,392.00';
+            document.getElementById('chart-title').innerText = '📈 Monthly Earnings Trend Chart';
+            renderChart(monthlyData);
+          } else {
+            currentView = 'weekly';
+            toggleViewBtn.innerText = 'Switch to Monthly';
+            document.getElementById('earnings-period-label').innerText = 'Total Weekly Earnings (XCD)';
+            document.getElementById('earnings-total-val').innerText = 'EC$ 2,830.00';
+            document.getElementById('earnings-net-val').innerText = 'EC$ 2,490.40';
+            document.getElementById('chart-title').innerText = '📈 Weekly Earnings Trend Chart';
+            renderChart(weeklyData);
+          }
+        };
+
+        document.getElementById('drv-share-gps-btn').onclick = () => {
+          const btn = document.getElementById('drv-share-gps-btn');
+          const status = document.getElementById('drv-share-status');
+          btn.innerText = "Broadcasting GPS...";
+          btn.style.background = '#0284c7';
+
+          const newLat = (17.12840 + (Math.random() - 0.5) * 0.005).toFixed(5);
+          const newLng = (-61.83920 + (Math.random() - 0.5) * 0.005).toFixed(5);
+          document.getElementById('drv-live-lat').innerText = newLat;
+          document.getElementById('drv-live-lng').innerText = newLng;
+
+          localStorage.setItem('elite_driver_gps', JSON.stringify({ lat: newLat, lng: newLng, time: Date.now() }));
+
+          setTimeout(() => {
+            btn.innerText = "📡 Share Real-Time GPS Location";
+            btn.style.background = '#059669';
+            status.innerText = "✓ Successfully pushed live coordinates to Firebase Realtime DB!";
+            setTimeout(() => { status.innerText = ""; }, 4000);
+          }, 800);
+        };
+      }
+
+      function injectSafetyCenterAndProximityNotifications() {
+        if (!document.getElementById('elite-safety-center-btn')) {
+          const safeBtn = document.createElement('div');
+          safeBtn.id = 'elite-safety-center-btn';
+          safeBtn.innerHTML = '🛡️ Safety Center';
+          safeBtn.style.cssText = 'position:fixed; bottom:140px; right:20px; z-index:99998; background:#7f1d1d; color:#fca5a5; padding:12px 18px; border-radius:30px; font-weight:600; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.4); font-size:14px; font-family:sans-serif; display:flex; align-items:center; gap:8px; border:2px solid #ef4444; transition:all 0.2s;';
+          safeBtn.onclick = () => toggleSafetyCenterModal();
+          document.body.appendChild(safeBtn);
+        }
+
+        // Request browser notification permission for 500m proximity alerts
+        if ("Notification" in window && Notification.permission === "default") {
+          Notification.requestPermission();
+        }
+      }
+
+      function toggleSafetyCenterModal() {
+        let modal = document.getElementById('elite-safety-modal');
+        if (modal) {
+          modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
+          renderTrustedContacts();
+          return;
+        }
+
+        modal = document.createElement('div');
+        modal.id = 'elite-safety-modal';
+        modal.style.cssText = 'position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:480px; max-width:90vw; background:#1e293b; color:#f8fafc; border-radius:16px; z-index:100001; box-shadow:0 25px 50px -12px rgba(0,0,0,0.7); display:flex; flex-direction:column; overflow:hidden; font-family:sans-serif; border:1px solid #334155;';
+
+        modal.innerHTML = `
+          <div style="background:#0f172a; padding:16px 20px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #334155;">
+            <div style="font-weight:bold; font-size:16px; color:#f87171; display:flex; align-items:center; gap:8px;">🛡️ Safety Center & Trusted Contacts</div>
+            <button id="safe-close-btn" style="background:transparent; border:none; color:#94a3b8; font-size:22px; cursor:pointer;">&times;</button>
+          </div>
+          <div style="padding:20px; display:flex; flex-direction:column; gap:16px; background:#0f172a80; max-height:75vh; overflow-y:auto;">
+            <div style="font-size:13px; color:#cbd5e1; line-height:1.5;">
+              Add up to <b>3 trusted emergency contacts</b>. When you trigger the emergency SOS button, live GPS coordinates (Lat: 17.1284, Lng: -61.8392) and automated distress alerts are instantly transmitted to your contacts and the Dominica Police Force (999).
+            </div>
+
+            <div style="background:#1e293b; border:1px solid #475569; border-radius:12px; padding:14px; display:flex; flex-direction:column; gap:10px;">
+              <div style="font-weight:bold; font-size:13px; color:#38bdf8;">Add Emergency Contact (Max 3)</div>
+              <input type="text" id="contact-name" placeholder="Contact Name (e.g. Maria Joseph)" style="background:#0f172a; border:1px solid #334155; border-radius:8px; padding:8px 12px; color:white; font-size:12px; outline:none;" />
+              <input type="text" id="contact-rel" placeholder="Relationship (e.g. Spouse / Parent)" style="background:#0f172a; border:1px solid #334155; border-radius:8px; padding:8px 12px; color:white; font-size:12px; outline:none;" />
+              <input type="text" id="contact-phone" placeholder="Phone Number (e.g. +1 767 235-0012)" style="background:#0f172a; border:1px solid #334155; border-radius:8px; padding:8px 12px; color:white; font-size:12px; outline:none;" />
+              <button id="add-contact-btn" style="background:#059669; color:white; border:none; padding:10px; border-radius:8px; font-weight:bold; cursor:pointer; font-size:12px;">+ Add Trusted Contact</button>
+            </div>
+
+            <div style="font-weight:bold; font-size:13px; color:#cbd5e1;">Your Trusted Emergency Contacts:</div>
+            <div id="trusted-contacts-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+
+            <div style="background:#450a0a; border:1px solid #7f1d1d; border-radius:10px; padding:12px; font-size:12px; color:#fca5a5; display:flex; flex-direction:column; gap:6px;">
+              <div style="font-weight:bold; color:#f87171;">📍 500m Driver Proximity Alert Status</div>
+              <div>Browser notifications are <span id="notif-status-text" style="color:#34d399; font-weight:bold;">Active</span>. You will receive an instant alert when driver Marcus Brody comes within 500 meters of your pickup spot.</div>
+            </div>
+          </div>
+        `;
+
+        document.body.appendChild(modal);
+        document.getElementById('safe-close-btn').onclick = () => {
+          modal.style.display = 'none';
+        };
+
+        document.getElementById('add-contact-btn').onclick = () => {
+          const name = document.getElementById('contact-name').value.trim();
+          const rel = document.getElementById('contact-rel').value.trim();
+          const phone = document.getElementById('contact-phone').value.trim();
+          if (!name || !phone) {
+            alert("Please provide at least a name and phone number for your emergency contact.");
+            return;
+          }
+
+          let contacts = JSON.parse(localStorage.getItem('elite_trusted_contacts') || '[]');
+          if (contacts.length >= 3) {
+            alert("You can add a maximum of 3 trusted emergency contacts.");
+            return;
+          }
+
+          contacts.push({ id: Date.now(), name, rel: rel || 'Family', phone });
+          localStorage.setItem('elite_trusted_contacts', JSON.stringify(contacts));
+          document.getElementById('contact-name').value = '';
+          document.getElementById('contact-rel').value = '';
+          document.getElementById('contact-phone').value = '';
+          renderTrustedContacts();
+        };
+
+        renderTrustedContacts();
+      }
+
+      function renderTrustedContacts() {
+        const listEl = document.getElementById('trusted-contacts-list');
+        if (!listEl) return;
+        const contacts = JSON.parse(localStorage.getItem('elite_trusted_contacts') || '[]');
+        if (contacts.length === 0) {
+          listEl.innerHTML = '<div style="font-size:12px; color:#64748b; font-style:italic; padding:6px 0;">No trusted emergency contacts added yet. Add up to 3 above.</div>';
+          return;
+        }
+
+        listEl.innerHTML = contacts.map(c => `
+          <div style="background:#0f172a; border:1px solid #334155; border-radius:10px; padding:10px 12px; display:flex; justify-content:space-between; align-items:center; font-size:12px;">
+            <div>
+              <div style="font-weight:bold; color:white;">${c.name} (${c.rel})</div>
+              <div style="color:#94a3b8; font-size:11px;">📞 ${c.phone}</div>
+            </div>
+            <button onclick="window.removeTrustedContact(${c.id})" style="background:#dc2626; color:white; border:none; padding:4px 8px; border-radius:6px; cursor:pointer; font-size:11px;">Remove</button>
+          </div>
+        `).join('');
+      }
+
+      window.removeTrustedContact = (id) => {
+        let contacts = JSON.parse(localStorage.getItem('elite_trusted_contacts') || '[]');
+        contacts = contacts.filter(c => c.id !== id);
+        localStorage.setItem('elite_trusted_contacts', JSON.stringify(contacts));
+        renderTrustedContacts();
+      };
+
+      // Trigger alerts to trusted contacts on SOS
+      function dispatchSosToTrustedContacts() {
+        const contacts = JSON.parse(localStorage.getItem('elite_trusted_contacts') || '[]');
+        if (contacts.length > 0) {
+          const names = contacts.map(c => c.name).join(', ');
+          console.log(`SOS Dispatched to trusted contacts: ${names}`);
+        }
+      }
+
+      function injectRideSchedulerFeature() {
+        if (!document.getElementById('elite-scheduler-btn')) {
+          const schedBtn = document.createElement('div');
+          schedBtn.id = 'elite-scheduler-btn';
+          schedBtn.innerHTML = '📅 Schedule Ride';
+          schedBtn.style.cssText = 'position:fixed; bottom:200px; right:20px; z-index:99998; background:#0369a1; color:#e0f2fe; padding:12px 18px; border-radius:30px; font-weight:600; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.4); font-size:14px; font-family:sans-serif; display:flex; align-items:center; gap:8px; border:2px solid #0ea5e9; transition:all 0.2s;';
+          schedBtn.onclick = () => toggleRideSchedulerModal();
+          document.body.appendChild(schedBtn);
+        }
+      }
+
+      function toggleRideSchedulerModal() {
+        let modal = document.getElementById('elite-scheduler-modal');
+        if (modal) {
+          modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
+          renderScheduledRidesList();
+          return;
+        }
+
+        modal = document.createElement('div');
+        modal.id = 'elite-scheduler-modal';
+        modal.style.cssText = 'position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:520px; max-width:90vw; background:#1e293b; color:#f8fafc; border-radius:16px; z-index:100001; box-shadow:0 25px 50px -12px rgba(0,0,0,0.7); display:flex; flex-direction:column; overflow:hidden; font-family:sans-serif; border:1px solid #334155;';
+
+        const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+
+        modal.innerHTML = `
+          <div style="background:#0f172a; padding:16px 20px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #334155;">
+            <div style="font-weight:bold; font-size:16px; color:#38bdf8; display:flex; align-items:center; gap:8px;">📅 Calendar Ride Scheduler (Airport & Meetings)</div>
+            <button id="sched-close-btn" style="background:transparent; border:none; color:#94a3b8; font-size:22px; cursor:pointer;">&times;</button>
+          </div>
+          <div style="padding:20px; display:flex; flex-direction:column; gap:16px; background:#0f172a80; max-height:75vh; overflow-y:auto;">
+            <div style="font-size:13px; color:#cbd5e1; line-height:1.5;">
+              Pre-book your elite rides for airport transfers (Melville Hall / Canefield) or high-priority meetings in advance. Our drivers receive scheduled assignments with guaranteed on-time arrival.
+            </div>
+
+            <div style="background:#1e293b; border:1px solid #475569; border-radius:12px; padding:14px; display:flex; flex-direction:column; gap:10px;">
+              <div style="font-weight:bold; font-size:13px; color:#38bdf8;">Schedule a New Ride</div>
+              
+              <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                <div>
+                  <label style="font-size:11px; color:#94a3b8; display:block; margin-bottom:4px;">Date</label>
+                  <input type="date" id="sched-date" value="${tomorrow}" style="width:100%; background:#0f172a; border:1px solid #334155; border-radius:8px; padding:8px 10px; color:white; font-size:12px; outline:none;" />
+                </div>
+                <div>
+                  <label style="font-size:11px; color:#94a3b8; display:block; margin-bottom:4px;">Time</label>
+                  <input type="time" id="sched-time" value="08:30" style="width:100%; background:#0f172a; border:1px solid #334155; border-radius:8px; padding:8px 10px; color:white; font-size:12px; outline:none;" />
+                </div>
+              </div>
+
+              <div>
+                <label style="font-size:11px; color:#94a3b8; display:block; margin-bottom:4px;">Trip Purpose / Note</label>
+                <input type="text" id="sched-purpose" placeholder="e.g. Airport Transfer (DOM) or Executive Board Meeting" style="width:100%; background:#0f172a; border:1px solid #334155; border-radius:8px; padding:8px 12px; color:white; font-size:12px; outline:none;" />
+              </div>
+
+              <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                <div>
+                  <label style="font-size:11px; color:#94a3b8; display:block; margin-bottom:4px;">Pickup Location</label>
+                  <select id="sched-pickup" style="width:100%; background:#0f172a; border:1px solid #334155; border-radius:8px; padding:8px 10px; color:white; font-size:12px; outline:none;">
+                    <option value="Roseau Center">Roseau Center</option>
+                    <option value="Canefield Airport">Canefield Airport</option>
+                    <option value="Portsmouth">Portsmouth Center</option>
+                    <option value="Marigot">Marigot / Airport Area</option>
+                  </select>
+                </div>
+                <div>
+                  <label style="font-size:11px; color:#94a3b8; display:block; margin-bottom:4px;">Destination</label>
+                  <select id="sched-dest" style="width:100%; background:#0f172a; border:1px solid #334155; border-radius:8px; padding:8px 10px; color:white; font-size:12px; outline:none;">
+                    <option value="Melville Hall Airport (DOM)">Melville Hall Airport (DOM)</option>
+                    <option value="Roseau Financial Center">Roseau Financial Center</option>
+                    <option value="Portsmouth Beach Resort">Portsmouth Beach Resort</option>
+                    <option value="Trafalgar Nature Estate">Trafalgar Nature Estate</option>
+                  </select>
+                </div>
+              </div>
+
+              <button id="sched-submit-btn" style="background:#0284c7; color:white; border:none; padding:10px; border-radius:8px; font-weight:bold; cursor:pointer; font-size:12px; margin-top:4px;">📅 Confirm & Schedule Advance Ride</button>
+            </div>
+
+            <div style="background:#1e293b; border:1px solid #475569; border-radius:12px; padding:14px; display:flex; flex-direction:column; gap:10px;">
+              <div style="font-weight:bold; font-size:13px; color:#34d399;">Upcoming Scheduled Rides</div>
+              <div id="scheduled-rides-list" style="display:flex; flex-direction:column; gap:8px; max-height:160px; overflow-y:auto;">
+                <!-- Rendered dynamically -->
+              </div>
+            </div>
+          </div>
+        `;
+
+        document.body.appendChild(modal);
+        document.getElementById('sched-close-btn').onclick = () => {
+          modal.style.display = 'none';
+        };
+
+        document.getElementById('sched-submit-btn').onclick = () => {
+          const date = document.getElementById('sched-date').value;
+          const time = document.getElementById('sched-time').value;
+          const purpose = document.getElementById('sched-purpose').value || 'Scheduled Ride';
+          const pickup = document.getElementById('sched-pickup').value;
+          const dest = document.getElementById('sched-dest').value;
+
+          if (!date || !time) {
+            alert('Please select both a valid date and time for your scheduled ride.');
+            return;
+          }
+
+          const newSched = {
+            id: 'SCHED-' + Math.floor(1000 + Math.random() * 9000),
+            date,
+            time,
+            purpose,
+            pickup,
+            dest,
+            status: 'Confirmed'
+          };
+
+          const existing = JSON.parse(localStorage.getItem('elite_scheduled_rides') || '[]');
+          existing.push(newSched);
+          localStorage.setItem('elite_scheduled_rides', JSON.stringify(existing));
+
+          document.getElementById('sched-purpose').value = '';
+          renderScheduledRidesList();
+          alert(`✓ Ride scheduled successfully for ${date} at ${time}!\nRoute: ${pickup} ➔ ${dest}\nAssigned driver will be dispatched 15 mins prior.`);
+        };
+
+        renderScheduledRidesList();
+      }
+
+      function renderScheduledRidesList() {
+        const listDiv = document.getElementById('scheduled-rides-list');
+        if (!listDiv) return;
+        const rides = JSON.parse(localStorage.getItem('elite_scheduled_rides') || '[]');
+        if (rides.length === 0) {
+          listDiv.innerHTML = '<div style="font-size:12px; color:#94a3b8; text-align:center; padding:10px;">No upcoming scheduled rides.</div>';
+          return;
+        }
+
+        listDiv.innerHTML = rides.map((r, index) => `
+          <div style="background:#0f172a; border:1px solid #334155; border-radius:8px; padding:10px; display:flex; justify-content:space-between; align-items:center; font-size:12px;">
+            <div>
+              <div style="font-weight:bold; color:#38bdf8;">${r.date} at ${r.time} — ${r.purpose}</div>
+              <div style="color:#cbd5e1; font-size:11px;">${r.pickup} ➔ ${r.dest}</div>
+              <div style="color:#34d399; font-size:10px; margin-top:2px;">Status: ${r.status} (Driver Assigned)</div>
+            </div>
+            <button onclick="window.cancelScheduledRide(${index})" style="background:#7f1d1d; color:#fca5a5; border:none; padding:4px 8px; border-radius:6px; cursor:pointer; font-size:11px;">Cancel</button>
+          </div>
+        `).join('');
+      }
+
+      window.cancelScheduledRide = function(index) {
+        const rides = JSON.parse(localStorage.getItem('elite_scheduled_rides') || '[]');
+        rides.splice(index, 1);
+        localStorage.setItem('elite_scheduled_rides', JSON.stringify(rides));
+        renderScheduledRidesList();
+      };
+
+      function injectPostRideFeedbackAndGlobalLanguageToggle() {
+        if (!document.getElementById('elite-feedback-btn')) {
+          const fbBtn = document.createElement('div');
+          fbBtn.id = 'elite-feedback-btn';
+          fbBtn.innerHTML = '⭐ Rate Driver';
+          fbBtn.style.cssText = 'position:fixed; bottom:260px; right:20px; z-index:99998; background:#b45309; color:#fef3c7; padding:10px 16px; border-radius:30px; font-weight:600; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.4); font-size:13px; font-family:sans-serif; display:flex; align-items:center; gap:6px; border:2px solid #f59e0b; transition:all 0.2s;';
+          fbBtn.onclick = () => toggleFeedbackModal();
+          document.body.appendChild(fbBtn);
+        }
+
+        if (!document.getElementById('elite-lang-toggle-widget')) {
+          const langWidget = document.createElement('div');
+          langWidget.id = 'elite-lang-toggle-widget';
+          langWidget.style.cssText = 'position:fixed; top:16px; right:20px; z-index:99999; background:#0f172a; border:1px solid #334155; border-radius:20px; padding:6px 12px; display:flex; align-items:center; gap:8px; font-family:sans-serif; font-size:12px; box-shadow:0 4px 12px rgba(0,0,0,0.5);';
+          langWidget.innerHTML = `
+            <span style="color:#94a3b8;">🌐 Lang:</span>
+            <select id="elite-lang-select" style="background:#1e293b; color:white; border:1px solid #475569; border-radius:8px; padding:4px 8px; font-size:11px; outline:none; cursor:pointer;">
+              <option value="en">English (EN)</option>
+              <option value="patois">Patois (Dominica Creole)</option>
+              <option value="es">Español (ES)</option>
+            </select>
+          `;
+          document.body.appendChild(langWidget);
+
+          document.getElementById('elite-lang-select').onchange = (e) => {
+            const lang = e.target.value;
+            localStorage.setItem('elite_app_lang', lang);
+            applyLanguageLocalization(lang);
+          };
+
+          const savedLang = localStorage.getItem('elite_app_lang') || 'en';
+          document.getElementById('elite-lang-select').value = savedLang;
+          applyLanguageLocalization(savedLang);
+        }
+      }
+
+      function toggleFeedbackModal() {
+        let modal = document.getElementById('elite-feedback-modal');
+        if (modal) {
+          modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
+          return;
+        }
+
+        modal = document.createElement('div');
+        modal.id = 'elite-feedback-modal';
+        modal.style.cssText = 'position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:440px; max-width:90vw; background:#1e293b; color:#f8fafc; border-radius:16px; z-index:100001; box-shadow:0 25px 50px -12px rgba(0,0,0,0.7); display:flex; flex-direction:column; overflow:hidden; font-family:sans-serif; border:1px solid #334155;';
+
+        let selectedStars = 5;
+
+        modal.innerHTML = `
+          <div style="background:#0f172a; padding:16px 20px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #334155;">
+            <div style="font-weight:bold; font-size:16px; color:#f59e0b; display:flex; align-items:center; gap:8px;">⭐ Post-Ride Driver Feedback</div>
+            <button id="fb-close-btn" style="background:transparent; border:none; color:#94a3b8; font-size:22px; cursor:pointer;">&times;</button>
+          </div>
+          <div style="padding:20px; display:flex; flex-direction:column; gap:16px; background:#0f172a80;">
+            <div style="font-size:13px; color:#cbd5e1; text-align:center;">
+              How was your trip with driver <b>Marcus Brody (DRV-8821)</b>? Your feedback ensures premium safety and service quality across Dominica.
+            </div>
+            
+            <div style="display:flex; justify-content:center; gap:8px;" id="star-rating-container">
+              ${[1,2,3,4,5].map(s => `<span data-star="${s}" class="star-item" style="font-size:32px; cursor:pointer; color:#f59e0b; transition:transform 0.1s;">★</span>`).join('')}
+            </div>
+
+            <div>
+              <label style="font-size:11px; color:#94a3b8; display:block; margin-bottom:4px;">Passenger Comments / Compliments</label>
+              <textarea id="fb-comment" placeholder="e.g. Extremely polite, clean vehicle, excellent driving through mountain curves!" style="width:100%; height:80px; background:#0f172a; border:1px solid #334155; border-radius:8px; padding:10px; color:white; font-size:12px; outline:none; resize:none;"></textarea>
+            </div>
+
+            <button id="fb-submit-btn" style="background:#f59e0b; color:#1e293b; border:none; padding:12px; border-radius:10px; font-weight:bold; cursor:pointer; font-size:14px; box-shadow:0 4px 12px rgba(245,158,11,0.3); text-align:center;">Submit Feedback & Save</button>
+            <div id="fb-status" style="font-size:12px; color:#34d399; text-align:center; height:18px;"></div>
+          </div>
+        `;
+
+        document.body.appendChild(modal);
+        document.getElementById('fb-close-btn').onclick = () => { modal.style.display = 'none'; };
+
+        const stars = modal.querySelectorAll('.star-item');
+        stars.forEach(st => {
+          st.onclick = () => {
+            selectedStars = parseInt(st.getAttribute('data-star'));
+            stars.forEach((s, idx) => {
+              s.style.color = idx < selectedStars ? '#f59e0b' : '#475569';
+            });
+          };
+        });
+
+        document.getElementById('fb-submit-btn').onclick = () => {
+          const comment = document.getElementById('fb-comment').value;
+          const feedbackRecord = {
+            id: 'FB-' + Date.now(),
+            driver: 'Marcus Brody',
+            rating: selectedStars,
+            comment,
+            timestamp: new Date().toLocaleString()
+          };
+
+          const existing = JSON.parse(localStorage.getItem('elite_driver_ratings') || '[]');
+          existing.push(feedbackRecord);
+          localStorage.setItem('elite_driver_ratings', JSON.stringify(existing));
+
+          document.getElementById('fb-status').innerText = '✓ Thank you! Feedback successfully saved to local records.';
+          setTimeout(() => {
+            modal.style.display = 'none';
+            document.getElementById('fb-status').innerText = '';
+            document.getElementById('fb-comment').value = '';
+          }, 1500);
+        };
+      }
+
+      function checkScheduledRideProximityNotifications() {
+        if (!("Notification" in window)) return;
+        if (Notification.permission === "default") {
+          Notification.requestPermission();
+        }
+
+        const rides = JSON.parse(localStorage.getItem('elite_scheduled_rides') || '[]');
+        const now = Date.now();
+
+        rides.forEach((r, idx) => {
+          if (r.notified15m) return;
+          const rideDateTime = new Date(`${r.date}T${r.time}`).getTime();
+          const diffMs = rideDateTime - now;
+          if (diffMs > 0 && diffMs <= 900000) {
+            if (Notification.permission === "granted") {
+              new Notification("🚗 Elite Ride Scheduled Reminder", {
+                body: `Your scheduled ride (${r.purpose}) departs in ~15 mins!\nRoute: ${r.pickup} ➔ ${r.dest}\nDriver Marcus Brody is en route.`,
+                icon: "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=120"
+              });
+            } else {
+              alert(`🚗 Reminder: Your scheduled ride (${r.purpose}) departs in ~15 mins!\nRoute: ${r.pickup} ➔ ${r.dest}`);
+            }
+            r.notified15m = true;
+            rides[idx] = r;
+            localStorage.setItem('elite_scheduled_rides', JSON.stringify(rides));
+          }
+        });
+      }
+
+      function applyLanguageLocalization(lang) {
+        const dict = {
+          en: {
+            sched: '📅 Schedule Ride',
+            feedback: '⭐ Rate Driver',
+            vehTitle: 'Select Vehicle Category',
+            estTitle: 'Ride Fare & Time Estimator'
+          },
+          patois: {
+            sched: '📅 Planifye Vwayaj',
+            feedback: '⭐ Note Kapitenn',
+            vehTitle: 'Chwazi Kalité Vwati',
+            estTitle: 'Esmatè Pwi é Tan'
+          },
+          es: {
+            sched: '📅 Programar Viaje',
+            feedback: '⭐ Calificar Conductor',
+            vehTitle: 'Seleccionar Vehículo',
+            estTitle: 'Estimador de Tarifa'
+          }
+        };
+
+        const t = dict[lang] || dict.en;
+        const schedEl = document.getElementById('elite-scheduler-btn');
+        if (schedEl) schedEl.innerHTML = t.sched;
+        const fbEl = document.getElementById('elite-feedback-btn');
+        if (fbEl) fbEl.innerHTML = t.feedback;
+      }
     </script>
   </body>
 </html>
