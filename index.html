@@ -174,6 +174,7 @@
 
       function injectVehicleSelectorUI() {
         if (document.getElementById('elite-vehicle-widget')) return;
+        window.eliteGroupRideActive = false;
         const widget = document.createElement('div');
         widget.id = 'elite-vehicle-widget';
         widget.className = 'fixed bottom-4 right-4 z-50 bg-slate-900/95 border border-emerald-500/40 rounded-2xl p-4 shadow-2xl backdrop-blur-md text-white max-w-sm w-full transition-all duration-300';
@@ -183,11 +184,33 @@
               <span class="text-xl">🚕</span>
               <div>
                 <h4 class="font-bold text-sm tracking-wide text-emerald-400">Select Vehicle Category</h4>
-                <p class="text-xs text-slate-400">Unique pricing multipliers applied</p>
+                <p class="text-xs text-slate-400">Unique pricing & group ride sharing</p>
               </div>
             </div>
             <button id="toggle-veh-btn" class="text-slate-400 hover:text-white text-xs bg-slate-800 px-2 py-1 rounded-lg">Minimize</button>
           </div>
+
+          <!-- Group Ride Toggle Widget -->
+          <div class="mb-3 bg-slate-800/80 border border-slate-700/80 rounded-xl p-2.5 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <span class="text-lg">👥</span>
+              <div>
+                <div class="text-xs font-bold text-sky-400">Group Ride Share</div>
+                <div class="text-[10px] text-slate-400">Save 20% & share with passengers</div>
+              </div>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="group-ride-checkbox" class="sr-only peer">
+              <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+            </label>
+          </div>
+
+          <!-- Capacity Indicator Badge -->
+          <div id="group-ride-capacity-badge" class="mb-3 text-[11px] bg-slate-950/60 border border-slate-800 rounded-lg p-2 flex items-center justify-between text-slate-300" style="display:none;">
+            <span class="flex items-center gap-1">🚌 Shared Capacity:</span>
+            <span class="font-bold text-emerald-400">2 / 4 Seats Available</span>
+          </div>
+
           <div id="veh-options-list" class="space-y-2">
             ${Object.entries(window.eliteVehicleMultipliers).map(([key, cat]) => `
               <div data-category="${key}" class="veh-cat-card cursor-pointer p-2.5 rounded-xl border ${key === window.eliteVehicleCategory ? 'border-emerald-500 bg-emerald-950/40 shadow-emerald-500/10 shadow-lg' : 'border-slate-800 bg-slate-800/50 hover:bg-slate-800'} transition-all flex items-center justify-between">
@@ -199,7 +222,7 @@
                   </div>
                 </div>
                 <div class="text-right">
-                  <span class="inline-block px-2 py-0.5 rounded-full text-xs font-bold ${key === window.eliteVehicleCategory ? 'bg-emerald-500 text-slate-950' : 'bg-slate-700 text-slate-300'}">
+                  <span class="veh-mult-badge inline-block px-2 py-0.5 rounded-full text-xs font-bold ${key === window.eliteVehicleCategory ? 'bg-emerald-500 text-slate-950' : 'bg-slate-700 text-slate-300'}" data-base-mult="${cat.multiplier}">
                     ${cat.multiplier}x
                   </span>
                 </div>
@@ -209,6 +232,25 @@
         `;
         document.body.appendChild(widget);
 
+        const groupCheckbox = widget.querySelector('#group-ride-checkbox');
+        const capacityBadge = widget.querySelector('#group-ride-capacity-badge');
+
+        groupCheckbox.addEventListener('change', () => {
+          window.eliteGroupRideActive = groupCheckbox.checked;
+          capacityBadge.style.display = window.eliteGroupRideActive ? 'flex' : 'none';
+
+          widget.querySelectorAll('.veh-cat-card').forEach(c => {
+            const badge = c.querySelector('.veh-mult-badge');
+            const baseMult = parseFloat(badge.getAttribute('data-base-mult'));
+            const adjustedMult = window.eliteGroupRideActive ? (baseMult * 0.8).toFixed(2) : baseMult;
+            badge.innerText = `${adjustedMult}x`;
+          });
+
+          window.dispatchEvent(new CustomEvent('elite-vehicle-changed', { 
+            detail: { category: window.eliteVehicleCategory, multiplier: window.eliteVehicleMultipliers[window.eliteVehicleCategory].multiplier, groupRide: window.eliteGroupRideActive } 
+          }));
+        });
+
         widget.querySelectorAll('.veh-cat-card').forEach(card => {
           card.addEventListener('click', () => {
             const catKey = card.getAttribute('data-category');
@@ -217,11 +259,12 @@
             widget.querySelectorAll('.veh-cat-card').forEach(c => {
               const isSel = c.getAttribute('data-category') === catKey;
               c.className = `veh-cat-card cursor-pointer p-2.5 rounded-xl border ${isSel ? 'border-emerald-500 bg-emerald-950/40 shadow-emerald-500/10 shadow-lg' : 'border-slate-800 bg-slate-800/50 hover:bg-slate-800'} transition-all flex items-center justify-between`;
-              const badge = c.querySelector('span:last-child');
-              badge.className = `inline-block px-2 py-0.5 rounded-full text-xs font-bold ${isSel ? 'bg-emerald-500 text-slate-950' : 'bg-slate-700 text-slate-300'}`;
+              const badge = c.querySelector('.veh-mult-badge');
+              badge.className = `veh-mult-badge inline-block px-2 py-0.5 rounded-full text-xs font-bold ${isSel ? 'bg-emerald-500 text-slate-950' : 'bg-slate-700 text-slate-300'}`;
             });
 
-            window.dispatchEvent(new CustomEvent('elite-vehicle-changed', { detail: { category: catKey, multiplier: window.eliteVehicleMultipliers[catKey].multiplier } }));
+            const activeMult = window.eliteGroupRideActive ? (window.eliteVehicleMultipliers[catKey].multiplier * 0.8).toFixed(2) : window.eliteVehicleMultipliers[catKey].multiplier;
+            window.dispatchEvent(new CustomEvent('elite-vehicle-changed', { detail: { category: catKey, multiplier: activeMult, groupRide: window.eliteGroupRideActive } }));
           });
         });
 
@@ -954,14 +997,19 @@
             </div>
           </div>
 
-          <!-- Dynamic ETA Progress Bar -->
-          <div style="background:#0f172a; padding:8px 16px; border-bottom:1px solid #334155; display:flex; flex-direction:column; gap:4px;">
+          <!-- Dynamic Trip Progress Bar -->
+          <div style="background:#0f172a; padding:10px 16px; border-bottom:1px solid #334155; display:flex; flex-direction:column; gap:6px;">
             <div style="display:flex; justify-content:space-between; font-size:11px; color:#94a3b8;">
-              <span style="display:flex; align-items:center; gap:4px;">⏱️ Driver Pickup ETA Countdown</span>
-              <span id="eta-countdown-timer" style="color:#38bdf8; font-weight:bold;">02:45</span>
+              <span id="trip-prog-title" style="display:flex; align-items:center; gap:4px; font-weight:600; color:#38bdf8;">🚗 Trip Progress (En Route to Destination)</span>
+              <span id="trip-prog-distance" style="color:#34d399; font-weight:bold;">4.2 mi remaining</span>
             </div>
-            <div style="width:100%; height:6px; background:#334155; border-radius:3px; overflow:hidden;">
-              <div id="eta-progress-bar" style="width:85%; height:100%; background:linear-gradient(90deg, #059669, #38bdf8); transition:width 1s linear;"></div>
+            <div style="width:100%; height:7px; background:#1e293b; border-radius:4px; overflow:hidden; border:1px solid #334155;">
+              <div id="trip-progress-bar-fill" style="width:25%; height:100%; background:linear-gradient(90deg, #059669, #38bdf8); transition:width 0.8s ease;"></div>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:10px; color:#64748b;">
+              <span>Roseau Ferry Terminal</span>
+              <span id="trip-prog-percent">25% Completed</span>
+              <span>Trafalgar Falls</span>
             </div>
           </div>
 
@@ -1031,16 +1079,19 @@
             </div>
           </div>
 
-          <!-- Encryption & Live Map Banner -->
+           <!-- Encryption & Live Map Banner -->
           <div id="chat-map-banner" style="background:#0f172a; border-bottom:1px solid #334155; padding:12px 14px; display:none; flex-direction:column; gap:8px; font-size:12px;">
             <div style="display:flex; justify-content:space-between; align-items:center; color:#38bdf8; font-weight:600;">
-              <span style="display:flex; align-items:center; gap:6px;">🗺️ Dominica Live GPS & SVG Map</span>
-              <span id="map-eta-badge" style="background:#0284c730; color:#38bdf8; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:bold;">ETA: 2 min</span>
+              <span style="display:flex; align-items:center; gap:6px;">🗺️ Dominica Live GPS & Accessible SVG Map</span>
+              <div style="display:flex; gap:6px; align-items:center;">
+                <button id="map-high-contrast-toggle" title="Toggle High-Contrast Mode for Visually Impaired Users" onclick="window.toggleMapHighContrast()" style="background:#1e293b; border:1px solid #38bdf8; color:#38bdf8; padding:2px 8px; border-radius:6px; font-size:10px; font-weight:bold; cursor:pointer;">⚡ High-Contrast</button>
+                <span id="map-eta-badge" style="background:#0284c730; color:#38bdf8; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:bold;">ETA: 2 min</span>
+              </div>
             </div>
 
-            <!-- SVG Custom Map Canvas -->
-            <div style="position:relative; background:#111827; border:1px solid #334155; border-radius:10px; overflow:hidden; height:160px; display:flex; align-items:center; justify-content:center;">
-              <svg id="dominica-svg-map" viewBox="0 0 320 180" style="width:100%; height:100%; background:#0b1329;">
+            <!-- SVG Custom Map Canvas with Accessibility Viewbox & Keyboard Controls -->
+            <div style="position:relative; background:#111827; border:1px solid #334155; border-radius:10px; overflow:hidden; height:180px; display:flex; align-items:center; justify-content:center;" tabindex="0" aria-label="Interactive Dominica Live Map. Use Plus and Minus keys to zoom, and R to recenter." id="svg-map-wrapper">
+              <svg id="dominica-svg-map" viewBox="0 0 320 180" style="width:100%; height:100%; background:#0b1329; transition:filter 0.3s ease;">
                 <defs>
                   <linearGradient id="islandGrad" x1="0%" y1="0%" x2="100%" y2="100%">
                     <stop offset="0%" stop-color="#064e3b" />
@@ -1051,47 +1102,62 @@
                     <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.5"/>
                     <stop offset="100%" stop-color="#38bdf8" stop-opacity="0"/>
                   </radialGradient>
+                  <!-- High Contrast SVG Color Matrix Filter -->
+                  <filter id="highContrastMapFilter" color-interpolation-filters="sRGB">
+                    <feColorMatrix type="matrix" values="
+                      1.5  0   0   0  0.1
+                      0   1.5  0   0  0.1
+                      0   0   1.5  0  0.2
+                      0   0   0    1  0" />
+                    <feComponentTransfer>
+                      <feFuncR type="linear" slope="1.3" intercept="0.05"/>
+                      <feFuncG type="linear" slope="1.3" intercept="0.05"/>
+                      <feFuncB type="linear" slope="1.4" intercept="0.1"/>
+                    </feComponentTransfer>
+                  </filter>
                 </defs>
 
                 <!-- Ocean background grid lines -->
-                <line x1="0" y1="45" x2="320" y2="45" stroke="#1e293b" stroke-width="1" stroke-dasharray="4" />
-                <line x1="0" y1="90" x2="320" y2="90" stroke="#1e293b" stroke-width="1" stroke-dasharray="4" />
-                <line x1="0" y1="135" x2="320" y2="135" stroke="#1e293b" stroke-width="1" stroke-dasharray="4" />
-                <line x1="80" y1="0" x2="80" y2="180" stroke="#1e293b" stroke-width="1" stroke-dasharray="4" />
-                <line x1="160" y1="0" x2="160" y2="180" stroke="#1e293b" stroke-width="1" stroke-dasharray="4" />
-                <line x1="240" y1="0" x2="240" y2="180" stroke="#1e293b" stroke-width="1" stroke-dasharray="4" />
+                <line x1="0" y1="45" x2="320" y2="45" stroke="#334155" stroke-width="1.5" stroke-dasharray="4" />
+                <line x1="0" y1="90" x2="320" y2="90" stroke="#334155" stroke-width="1.5" stroke-dasharray="4" />
+                <line x1="0" y1="135" x2="320" y2="135" stroke="#334155" stroke-width="1.5" stroke-dasharray="4" />
+                <line x1="80" y1="0" x2="80" y2="180" stroke="#334155" stroke-width="1.5" stroke-dasharray="4" />
+                <line x1="160" y1="0" x2="160" y2="180" stroke="#334155" stroke-width="1.5" stroke-dasharray="4" />
+                <line x1="240" y1="0" x2="240" y2="180" stroke="#334155" stroke-width="1.5" stroke-dasharray="4" />
 
                 <!-- Dominica Island Contour Path -->
-                <path d="M140,15 C170,25 185,45 190,70 C195,95 205,120 185,150 C165,175 130,170 120,155 C110,140 115,115 105,90 C95,65 110,35 140,15 Z" fill="url(#islandGrad)" stroke="#10b981" stroke-width="1.5" opacity="0.85" />
+                <path d="M140,15 C170,25 185,45 190,70 C195,95 205,120 185,150 C165,175 130,170 120,155 C110,140 115,115 105,90 C95,65 110,35 140,15 Z" fill="url(#islandGrad)" stroke="#34d399" stroke-width="2.5" opacity="0.95" />
 
                 <!-- Island Interior Mountain Peaks -->
-                <circle cx="150" cy="75" r="4" fill="#34d399" opacity="0.6" />
-                <text x="158" y="78" fill="#6ee7b7" font-size="8" font-family="sans-serif">Morne Diablotins</text>
-                <circle cx="155" cy="120" r="4" fill="#34d399" opacity="0.6" />
-                <text x="163" y="123" fill="#6ee7b7" font-size="8" font-family="sans-serif">Morne Trois Pitons</text>
+                <circle cx="150" cy="75" r="5" fill="#6ee7b7" />
+                <text x="158" y="78" fill="#ffffff" font-size="9" font-weight="bold" font-family="sans-serif">Morne Diablotins</text>
+                <circle cx="155" cy="120" r="5" fill="#6ee7b7" />
+                <text x="163" y="123" fill="#ffffff" font-size="9" font-weight="bold" font-family="sans-serif">Morne Trois Pitons</text>
 
                 <!-- Navigation Route Path -->
-                <path id="svg-route-path" d="M 120 150 Q 140 110 160 85 T 180 35" fill="none" stroke="#38bdf8" stroke-width="3" stroke-dasharray="6,4" opacity="0.8" />
+                <path id="svg-route-path" d="M 120 150 Q 140 110 160 85 T 180 35" fill="none" stroke="#60a5fa" stroke-width="4" stroke-dasharray="6,4" opacity="0.95" />
 
                 <!-- Pickup Marker -->
-                <circle cx="180" cy="35" r="7" fill="#ef4444" opacity="0.3" />
-                <circle cx="180" cy="35" r="4" fill="#ef4444" />
-                <text x="190" y="38" fill="#fca5a5" font-size="9" font-weight="bold" font-family="sans-serif">Pickup</text>
+                <circle cx="180" cy="35" r="9" fill="#ef4444" opacity="0.4" />
+                <circle cx="180" cy="35" r="5" fill="#f87171" stroke="#ffffff" stroke-width="1.5" />
+                <text x="192" y="38" fill="#ffffff" font-size="10" font-weight="bold" font-family="sans-serif">Pickup</text>
 
                 <!-- Driver Live Marker -->
                 <g id="svg-driver-marker" transform="translate(120, 150)">
-                  <circle cx="0" cy="0" r="12" fill="url(#radarPulse)">
-                    <animate attributeName="r" values="6;16;6" dur="2s" repeatCount="indefinite"/>
-                    <animate attributeName="opacity" values="0.8;0;0.8" dur="2s" repeatCount="indefinite"/>
+                  <circle cx="0" cy="0" r="14" fill="url(#radarPulse)">
+                    <animate attributeName="r" values="6;18;6" dur="2s" repeatCount="indefinite"/>
+                    <animate attributeName="opacity" values="0.9;0;0.9" dur="2s" repeatCount="indefinite"/>
                   </circle>
-                  <circle cx="0" cy="0" r="6" fill="#0284c7" stroke="#ffffff" stroke-width="1.5"/>
-                  <text x="10" y="3" fill="#38bdf8" font-size="9" font-weight="bold" font-family="sans-serif">🚗 Marcus</text>
+                  <circle cx="0" cy="0" r="7" fill="#38bdf8" stroke="#ffffff" stroke-width="2"/>
+                  <text x="12" y="4" fill="#ffffff" font-size="10" font-weight="bold" font-family="sans-serif">🚗 Marcus</text>
                 </g>
               </svg>
 
-              <!-- Map Controls Overlay -->
-              <div style="position:absolute; bottom:6px; right:6px; display:flex; gap:4px;">
-                <button id="map-recenter-btn" style="background:#1e293b; border:1px solid #475569; color:#cbd5e1; padding:2px 6px; border-radius:4px; font-size:10px; cursor:pointer;" onclick="resetMapProgress()">Recenter</button>
+              <!-- Keyboard-Accessible Zoom & Recenter Controls Overlay -->
+              <div style="position:absolute; bottom:8px; right:8px; display:flex; gap:4px; align-items:center;">
+                <button id="map-zoom-in-btn" aria-label="Zoom In Map" title="Zoom In (Key: +)" onclick="window.zoomMapIn()" style="background:#1e293b; border:1px solid #38bdf8; color:#38bdf8; width:26px; height:26px; border-radius:6px; font-weight:bold; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center;">+</button>
+                <button id="map-zoom-out-btn" aria-label="Zoom Out Map" title="Zoom Out (Key: -)" onclick="window.zoomMapOut()" style="background:#1e293b; border:1px solid #38bdf8; color:#38bdf8; width:26px; height:26px; border-radius:6px; font-weight:bold; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center;">-</button>
+                <button id="map-recenter-btn" aria-label="Recenter Map" title="Recenter (Key: R)" onclick="window.resetMapProgress()" style="background:#1e293b; border:1px solid #475569; color:#cbd5e1; padding:3px 8px; border-radius:6px; font-size:10px; font-weight:bold; cursor:pointer;">Recenter</button>
               </div>
             </div>
 
@@ -1155,11 +1221,77 @@
           if (sosBanner) sosBanner.style.display = 'none';
         };
 
-        let mapProgress = 40;
-        window.resetMapProgress = function() {
-          mapProgress = 10;
-          updateMapSimulation();
+        let mapZoomLevel = 1.0;
+        let mapHighContrastActive = false;
+
+        window.zoomMapIn = function() {
+          mapZoomLevel = Math.min(2.5, mapZoomLevel + 0.25);
+          applyMapZoomAndViewBox();
         };
+
+        window.zoomMapOut = function() {
+          mapZoomLevel = Math.max(0.75, mapZoomLevel - 0.25);
+          applyMapZoomAndViewBox();
+        };
+
+        window.toggleMapHighContrast = function() {
+          mapHighContrastActive = !mapHighContrastActive;
+          const svgEl = document.getElementById('dominica-svg-map');
+          const toggleBtn = document.getElementById('map-high-contrast-toggle');
+          if (svgEl) {
+            svgEl.style.filter = mapHighContrastActive ? 'url(#highContrastMapFilter) contrast(180%)' : 'none';
+          }
+          if (toggleBtn) {
+            toggleBtn.style.background = mapHighContrastActive ? '#38bdf8' : '#1e293b';
+            toggleBtn.style.color = mapHighContrastActive ? '#0f172a' : '#38bdf8';
+            toggleBtn.innerText = mapHighContrastActive ? '⚡ Contrast ON' : '⚡ High-Contrast';
+          }
+        };
+
+        function applyMapZoomAndViewBox() {
+          const svgEl = document.getElementById('dominica-svg-map');
+          if (!svgEl) return;
+          let w = 320 / mapZoomLevel;
+          let h = 180 / mapZoomLevel;
+          let x = (320 - w) / 2;
+          let y = (180 - h) / 2;
+          svgEl.setAttribute('viewBox', `${x} ${y} ${w} ${h}`);
+        }
+
+        const mapWrapper = document.getElementById('svg-map-wrapper');
+        if (mapWrapper) {
+          mapWrapper.addEventListener('keydown', (e) => {
+            if (e.key === '+' || e.key === '=') {
+              e.preventDefault();
+              window.zoomMapIn();
+            } else if (e.key === '-' || e.key === '_') {
+              e.preventDefault();
+              window.zoomMapOut();
+            } else if (e.key === 'r' || e.key === 'R') {
+              e.preventDefault();
+              window.resetMapProgress();
+            }
+          });
+        }
+
+        let tripProgressPercent = 15;
+        function updateTripProgressBar() {
+          const fill = document.getElementById('trip-progress-bar-fill');
+          const distLabel = document.getElementById('trip-prog-distance');
+          const percentLabel = document.getElementById('trip-prog-percent');
+          if (!fill) return;
+
+          tripProgressPercent = (tripProgressPercent + 2) % 96;
+          let remainingMiles = Math.max(0.2, (4.2 * (1 - tripProgressPercent / 100))).toFixed(1);
+
+          fill.style.width = tripProgressPercent + '%';
+          if (distLabel) distLabel.innerText = `${remainingMiles} mi remaining`;
+          if (percentLabel) percentLabel.innerText = `${tripProgressPercent}% Completed`;
+        }
+
+        setInterval(() => {
+          updateTripProgressBar();
+        }, 2000);
 
         function updateMapSimulation() {
           const marker = document.getElementById('svg-driver-marker');
@@ -1774,8 +1906,11 @@
             </div>
 
             <div style="background:#450a0a; border:1px solid #7f1d1d; border-radius:10px; padding:12px; font-size:12px; color:#fca5a5; display:flex; flex-direction:column; gap:6px;">
-              <div style="font-weight:bold; color:#f87171;">📍 500m Driver Proximity Alert Status</div>
-              <div>Browser notifications are <span id="notif-status-text" style="color:#34d399; font-weight:bold;">Active</span>. You will receive an instant alert when driver Marcus Brody comes within 500 meters of your pickup spot.</div>
+              <div style="font-weight:bold; color:#f87171; display:flex; justify-content:space-between; align-items:center;">
+                <span>📍 50m / 500m Driver Proximity & Haptic Alert</span>
+                <button onclick="window.triggerProximityHapticTest()" style="background:#dc2626; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:10px; cursor:pointer;">Test 50m Haptic Vibration</button>
+              </div>
+              <div>Browser notifications are <span id="notif-status-text" style="color:#34d399; font-weight:bold;">Active</span>. Device haptic vibration (long pattern) automatically triggers when driver Marcus Brody comes within 50 meters of your pickup location in noisy public areas.</div>
             </div>
           </div>
         `;
@@ -1883,6 +2018,23 @@
           alert("Browser notifications are not supported in this environment.");
         }
       };
+
+      window.triggerProximityHapticTest = () => {
+        if ("vibrate" in navigator) {
+          // Long device vibration pattern (e.g. 500ms vibrate, 200ms pause, 500ms vibrate, 200ms pause, 800ms long vibration)
+          navigator.vibrate([500, 200, 500, 200, 800]);
+          alert("📳 Haptic Vibration Triggered! Driver Marcus Brody is within 50m of your pickup location.");
+        } else {
+          alert("Device vibration is not supported on this browser or device.");
+        }
+      };
+
+      // Automatic 50m proximity check simulator
+      setTimeout(() => {
+        if ("vibrate" in navigator) {
+          navigator.vibrate([400, 150, 400, 150, 700]);
+        }
+      }, 10000);
 
        let recognition = null;
        let isListeningVoice = false;
@@ -2185,6 +2337,22 @@
 
       window.cancelScheduledRide = function(index) {
         const rides = JSON.parse(localStorage.getItem('elite_scheduled_rides') || '[]');
+        const ride = rides[index];
+        if (!ride) return;
+
+        const rideDateTime = new Date(`${ride.date}T${ride.time}`).getTime();
+        const now = Date.now();
+        const diffMinutes = (rideDateTime - now) / (1000 * 60);
+
+        if (diffMinutes <= 60 && diffMinutes >= 0) {
+          const penaltyAmount = (45.00 * 0.15).toFixed(2);
+          alert(`⚠️ Late Cancellation Fee Applied!\n\nYou cancelled within 60 minutes of your scheduled pickup time (${Math.round(diffMinutes)} mins remaining).\nA 15% service penalty of EC$ ${penaltyAmount} has been automatically charged to your saved payment method (Stripe Card •••• 4242).\n\nConfirmation sent to info@elite-ride.org.`);
+        } else if (diffMinutes < 0) {
+          alert(`Notice: This scheduled ride time has already passed. Ride removed from history.`);
+        } else {
+          alert(`✓ Scheduled ride successfully cancelled free of charge (>60 mins prior).`);
+        }
+
         rides.splice(index, 1);
         localStorage.setItem('elite_scheduled_rides', JSON.stringify(rides));
         renderScheduledRidesList();
