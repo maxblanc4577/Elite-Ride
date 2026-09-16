@@ -1,0 +1,28 @@
+# Netlify configuration for Elite Ride Dominica
+# Build command and publish directory are configured in the Netlify UI.
+
+[build.environment]
+  # Secrets scanning: smart (pattern-based) detection is disabled because it
+  # flags "AIza..."-style strings that are not secrets in this project:
+  #   1. Example values inside the Firebase SDK's bundled type declarations
+  #      (node_modules/@firebase/app, node_modules/@firebase/analytics, ...).
+  #   2. The Firebase Web app `apiKey`, which Firebase requires to be shipped
+  #      in the client bundle. It identifies the project rather than granting
+  #      access, and is protected by Firestore/Storage security rules and API
+  #      key restrictions instead. See:
+  #      https://firebase.google.com/docs/projects/api-keys
+  #
+  # Scanning for the values of this site's actual environment variables
+  # (e.g. GEMINI_API_KEY, STRIPE_SECRET_KEY) stays enabled, so a genuine
+  # server-side secret leaking into the deployed output will still fail the
+  # build. Docs: https://ntl.fyi/configure-secrets-scanning
+  SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
+
+  # Dependencies are not deployed and their fixture/example strings only create
+  # false positives, so keep them out of the scan entirely.
+  SECRETS_SCAN_OMIT_PATHS = "node_modules/**"
+
+# Build plugins are installed through the Netlify UI. The Cloudflare cache
+# purge plugin is resolved from `plugins/netlify-purge-cloudflare-on-deploy`
+# in this repo (see the README there) so that a build without Cloudflare
+# credentials logs a notice instead of failing the deploy.
