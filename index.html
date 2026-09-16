@@ -56,6 +56,23 @@
       div#root:nth-of-type(1) > div:nth-of-type(1) > header:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) {
         display: none !important;
       }
+      div#root:nth-of-type(1) > div:nth-of-type(1) > header:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > button:nth-of-type(2) {
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 0.5rem !important;
+        padding-left: 0.65rem !important;
+        padding-right: 0.85rem !important;
+        border-radius: 0.75rem !important;
+      }
+      div#root:nth-of-type(1) > div:nth-of-type(1) > header:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > button:nth-of-type(2) img {
+        width: 1.35rem !important;
+        height: 1.35rem !important;
+        border-radius: 9999px !important;
+        object-fit: cover !important;
+        border: 1.5px solid rgba(255, 255, 255, 0.9) !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35) !important;
+        flex-shrink: 0 !important;
+      }
       div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(5) {
         display: none !important;
       }
@@ -514,10 +531,52 @@
         } catch (e) {}
       }
 
+      function ensureRiderPhotoInHeader() {
+        try {
+          const btn = document.querySelector('div#root > div > header > div > div:nth-of-type(3) > button:nth-of-type(2)') ||
+                      document.querySelector('header div.justify-end > button:nth-of-type(2)');
+          if (!btn) return;
+
+          let riderPhoto = localStorage.getItem('eliteride_rider_photo');
+          if (!riderPhoto) {
+            try {
+              const u = JSON.parse(localStorage.getItem('eliteride_user_profile') || '{}');
+              if (u.riderPhotoUrl) riderPhoto = u.riderPhotoUrl;
+            } catch (err) {}
+          }
+          if (!riderPhoto) {
+            riderPhoto = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250';
+          }
+
+          let img = btn.querySelector('img[alt*="Rider"]');
+          if (!img) {
+            const svgIcon = btn.querySelector('svg');
+            if (svgIcon) {
+              img = document.createElement('img');
+              img.src = riderPhoto;
+              img.alt = 'Rider Profile Photo';
+              img.referrerPolicy = 'no-referrer';
+              img.className = 'w-5 h-5 rounded-full object-cover border border-white/90 shadow-sm shrink-0 hover:ring-2 hover:ring-emerald-400 transition-all';
+              img.style.cssText = 'width:20px; height:20px; border-radius:50%; object-fit:cover; border:1.5px solid rgba(255,255,255,0.9); box-shadow:0 1px 3px rgba(0,0,0,0.35); flex-shrink:0; cursor:pointer;';
+              img.title = 'Click to change face photo (Upload or Live Camera)';
+              img.onclick = (e) => { e.stopPropagation(); if (window.openFacePhotoCaptureModal) window.openFacePhotoCaptureModal(); };
+              svgIcon.replaceWith(img);
+            }
+          } else {
+            if (img.src !== riderPhoto && riderPhoto) img.src = riderPhoto;
+            img.style.cursor = 'pointer';
+            img.title = 'Click to change face photo (Upload or Live Camera)';
+            img.onclick = (e) => { e.stopPropagation(); if (window.openFacePhotoCaptureModal) window.openFacePhotoCaptureModal(); };
+          }
+        } catch (e) {}
+      }
+
       window.addEventListener('DOMContentLoaded', () => {
         setTimeout(injectVehicleSelectorUI, 500);
         setTimeout(injectRideEstimationTool, 600);
         clearTotalAmountToZero();
+        ensureRiderPhotoInHeader();
+        injectFaceProfilePhotoModal();
         injectAdminControls();
         injectRideChatInterface();
         injectRideHistoryAndDriverPanel();
@@ -528,6 +587,8 @@
         checkScheduledRideProximityNotifications();
         setInterval(() => {
           updateAdminEmail();
+          ensureRiderPhotoInHeader();
+          injectFaceProfilePhotoModal();
           injectAdminControls();
           injectRideChatInterface();
           injectRideHistoryAndDriverPanel();
@@ -2663,6 +2724,458 @@
           }
         });
       }
+
+      
+      /* ==========================================================================
+         LIVE FACE PHOTO & UPLOAD MODAL SYSTEM (DOMINICA ELITE RIDE)
+         ========================================================================== */
+      let faceCameraStream = null;
+      let faceCameraFacingMode = "user";
+      let facePhotoPendingDataUrl = null;
+      let onFacePhotoSavedCallback = null;
+
+      function injectFaceProfilePhotoModal() {
+        // 1. Add Quick Actions Dock button if not present
+        if (!document.getElementById("elite-face-photo-dock-btn")) {
+          const dockContainer = getOrCreateQuickActionsDock();
+          if (dockContainer) {
+            const photoDockBtn = document.createElement("div");
+            photoDockBtn.id = "elite-face-photo-dock-btn";
+            photoDockBtn.innerHTML = "📸 Face Profile Photo";
+            photoDockBtn.style.cssText = "pointer-events:auto; position:relative; background:#047857; color:white; padding:10px 16px; border-radius:30px; font-weight:600; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.4); font-size:13px; font-family:sans-serif; display:flex; align-items:center; gap:8px; border:2px solid #10b981; transition:all 0.2s; width:fit-content;";
+            photoDockBtn.onclick = () => openFacePhotoCaptureModal();
+            dockContainer.appendChild(photoDockBtn);
+
+            const counter = document.getElementById("elite-tools-counter");
+            if (counter) counter.innerText = "7";
+          }
+        }
+
+        // 2. Add Modal if not present
+        if (document.getElementById("elite-face-photo-modal")) return;
+
+        const modal = document.createElement("div");
+        modal.id = "elite-face-photo-modal";
+        modal.style.cssText = "display:none; position:fixed; inset:0; z-index:99999; background:rgba(2, 6, 23, 0.88); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); align-items:center; justify-content:center; padding:16px; font-family:system-ui, -apple-system, sans-serif;";
+
+        modal.innerHTML = `
+          <div style="background:#090d16; border:1px solid #334155; border-radius:20px; width:100%; max-width:480px; max-height:92vh; overflow-y:auto; box-shadow:0 25px 50px -12px rgba(0,0,0,0.85); color:#f8fafc; display:flex; flex-direction:column; position:relative;">
+            
+            <!-- Header -->
+            <div style="padding:16px 20px; border-bottom:1px solid #1e293b; display:flex; justify-content:space-between; align-items:center; background:#0d1424; border-top-left-radius:20px; border-top-right-radius:20px;">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <div style="width:36px; height:36px; border-radius:10px; background:#065f46; border:1px solid #10b981; display:flex; align-items:center; justify-content:center; font-size:18px;">📸</div>
+                <div>
+                  <h3 style="margin:0; font-size:15px; font-weight:800; color:#34d399; letter-spacing:0.3px;">Rider Face Profile Photo</h3>
+                  <p style="margin:2px 0 0 0; font-size:11px; color:#94a3b8;">Dominica Transport Safety Verified Pass</p>
+                </div>
+              </div>
+              <button onclick="closeFacePhotoCaptureModal()" style="background:#1e293b; color:#94a3b8; border:none; width:30px; height:30px; border-radius:8px; cursor:pointer; font-size:15px; font-weight:bold; display:flex; align-items:center; justify-content:center; transition:all 0.2s;" onmouseover="this.style.color='#fff'; this.style.background='#334155';" onmouseout="this.style.color='#94a3b8'; this.style.background='#1e293b';">✕</button>
+            </div>
+
+            <!-- Current Active Photo Banner -->
+            <div style="padding:12px 20px; background:#0f172a; border-bottom:1px solid #1e293b; display:flex; align-items:center; gap:12px;">
+              <img id="active-face-photo-thumb" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250" alt="Current Rider Photo" style="width:42px; height:42px; border-radius:50%; object-fit:cover; border:2px solid #10b981; box-shadow:0 2px 6px rgba(0,0,0,0.4); flex-shrink:0;" />
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:12px; font-weight:700; color:#e2e8f0; display:flex; align-items:center; gap:6px;">
+                  <span>Current Rider Photo</span>
+                  <span style="background:#065f46; color:#a7f3d0; font-size:9px; font-weight:bold; padding:1px 6px; border-radius:6px; font-family:monospace;">ACTIVE</span>
+                </div>
+                <div style="font-size:11px; color:#64748b; margin-top:2px;">Shared securely with your assigned Dominica driver</div>
+              </div>
+            </div>
+
+            <!-- Tab Buttons -->
+            <div style="display:flex; border-bottom:1px solid #1e293b; background:#0b1120; padding:6px 16px; gap:8px;">
+              <button id="face-tab-live-btn" onclick="switchFacePhotoTab('live')" style="flex:1; padding:8px 12px; border-radius:10px; font-size:12px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; border:1px solid #10b981; background:#065f46; color:#ffffff; transition:all 0.2s;">
+                <span>📸 Live Camera</span>
+              </button>
+              <button id="face-tab-upload-btn" onclick="switchFacePhotoTab('upload')" style="flex:1; padding:8px 12px; border-radius:10px; font-size:12px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; border:1px solid #334155; background:#1e293b; color:#94a3b8; transition:all 0.2s;">
+                <span>📁 Upload File</span>
+              </button>
+            </div>
+
+            <!-- Body Content -->
+            <div style="padding:16px 20px; display:flex; flex-direction:column; gap:16px;">
+              
+              <!-- Tab 1: Live Camera Mode -->
+              <div id="face-view-live" style="display:flex; flex-direction:column; gap:12px;">
+                <div style="position:relative; width:100%; height:280px; background:#020617; border-radius:14px; overflow:hidden; border:2px solid #1e293b; display:flex; align-items:center; justify-content:center;">
+                  <video id="face-cam-video" autoplay playsinline muted style="width:100%; height:100%; object-fit:cover; transform:scaleX(-1);"></video>
+                  
+                  <!-- Flash element -->
+                  <div id="face-cam-flash" style="position:absolute; inset:0; background:white; opacity:0; pointer-events:none; transition:opacity 0.25s;"></div>
+
+                  <!-- Face Alignment Oval Guide -->
+                  <div id="face-cam-guide" style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:none;">
+                    <div style="width:160px; height:200px; border:2px dashed rgba(52, 211, 153, 0.75); border-radius:50%; box-shadow:0 0 0 9999px rgba(2,6,23,0.35); position:relative;">
+                      <div style="position:absolute; bottom:-28px; left:50%; transform:translateX(-50%); background:#065f46; color:#a7f3d0; font-size:10px; font-weight:bold; padding:2px 8px; border-radius:10px; white-space:nowrap; border:1px solid rgba(16,185,129,0.4);">
+                        CENTER FACE HERE
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Camera Status Badge -->
+                  <div id="face-cam-status-badge" style="position:absolute; top:10px; right:10px; background:rgba(2,6,23,0.85); border:1px solid rgba(16,185,129,0.5); padding:3px 8px; border-radius:20px; font-size:10px; font-weight:bold; color:#34d399; display:flex; align-items:center; gap:5px;">
+                    <span style="width:6px; height:6px; border-radius:50%; background:#10b981; box-shadow:0 0 8px #10b981; animation:pulse 1.5s infinite;"></span>
+                    <span>Live Video</span>
+                  </div>
+
+                  <!-- Camera Error State (if permission blocked) -->
+                  <div id="face-cam-error-view" style="display:none; position:absolute; inset:0; background:#0f172a; padding:20px; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:10px;">
+                    <div style="font-size:32px;">📷</div>
+                    <div style="font-size:13px; font-weight:bold; color:#f87171;">Camera Access Restricted</div>
+                    <div style="font-size:11px; color:#cbd5e1; max-width:280px; line-height:1.4;">Allow camera permissions in browser settings, or use direct mobile camera capture below:</div>
+                    <button onclick="document.getElementById('face-cam-native-input').click()" style="background:#059669; color:white; border:none; padding:8px 16px; border-radius:8px; font-size:12px; font-weight:bold; cursor:pointer;">📱 Take Photo with Device Camera</button>
+                  </div>
+                </div>
+
+                <!-- Camera Controls Bar -->
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+                  <button type="button" onclick="flipFaceCamera()" style="background:#1e293b; hover:bg:#334155; color:#cbd5e1; border:1px solid #475569; padding:8px 12px; border-radius:10px; font-size:11px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:5px;">
+                    🔄 Flip Camera
+                  </button>
+
+                  <button type="button" onclick="captureLiveFacePhoto()" style="flex:1; background:linear-gradient(to right, #059669, #0d9488); color:white; border:none; padding:10px 16px; border-radius:12px; font-size:13px; font-weight:800; cursor:pointer; box-shadow:0 4px 14px rgba(5,150,105,0.4); display:flex; align-items:center; justify-content:center; gap:6px; transition:transform 0.1s;" onmousedown="this.style.transform='scale(0.97)';" onmouseup="this.style.transform='scale(1)';">
+                    📸 Snap Live Photo
+                  </button>
+
+                  <input type="file" id="face-cam-native-input" accept="image/*" capture="user" style="display:none;" onchange="handleFacePhotoFileInput(event)" />
+                  <button type="button" onclick="document.getElementById('face-cam-native-input').click()" title="Open System Native Camera" style="background:#1e293b; color:#cbd5e1; border:1px solid #475569; padding:8px 12px; border-radius:10px; font-size:11px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:4px;">
+                    📱 System
+                  </button>
+                </div>
+              </div>
+
+              <!-- Tab 2: Upload File Mode -->
+              <div id="face-view-upload" style="display:none; flex-direction:column; gap:12px;">
+                <div id="face-drop-zone" style="border:2px dashed #334155; border-radius:14px; padding:32px 16px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:10px; background:#0a101f; cursor:pointer; transition:all 0.2s;" onclick="document.getElementById('face-file-picker-input').click()">
+                  <div style="width:52px; height:52px; border-radius:50%; background:#1e293b; border:1px solid #334155; display:flex; align-items:center; justify-content:center; font-size:24px;">📁</div>
+                  <div>
+                    <div style="font-size:13px; font-weight:700; color:#e2e8f0;">Click to Browse or Drag Photo Here</div>
+                    <div style="font-size:11px; color:#64748b; margin-top:3px;">JPG, PNG, or WEBP (Automatically centered & cropped)</div>
+                  </div>
+                  <button type="button" style="background:#059669; color:white; border:none; padding:8px 18px; border-radius:8px; font-size:12px; font-weight:bold; cursor:pointer; pointer-events:none;">Select Photo File</button>
+                </div>
+                <input type="file" id="face-file-picker-input" accept="image/*" style="display:none;" onchange="handleFacePhotoFileInput(event)" />
+              </div>
+
+              <!-- Preview & Confirmation Box (Appears after taking or uploading photo) -->
+              <div id="face-preview-container" style="display:none; flex-direction:column; gap:14px; background:#0f172a; border:1px solid #10b981; border-radius:14px; padding:16px; align-items:center; text-align:center;">
+                <div style="font-size:12px; font-weight:bold; color:#34d399; display:flex; align-items:center; gap:6px;">
+                  <span>✨ Photo Captured & Ready</span>
+                </div>
+                <div style="position:relative; width:130px; height:130px; border-radius:50%; overflow:hidden; border:3px solid #10b981; box-shadow:0 8px 20px rgba(0,0,0,0.5);">
+                  <img id="face-captured-preview-img" src="" alt="Captured Preview" style="width:100%; height:100%; object-fit:cover;" />
+                </div>
+                <div style="font-size:11px; color:#94a3b8; max-width:280px; line-height:1.4;">
+                  This photo will appear in your Dominica Elite Ride header and profile pass.
+                </div>
+                <div style="display:flex; gap:10px; width:100%;">
+                  <button type="button" onclick="retakeFacePhoto()" style="flex:1; background:#1e293b; hover:bg:#334155; color:#cbd5e1; border:1px solid #475569; padding:9px; border-radius:10px; font-size:12px; font-weight:700; cursor:pointer;">
+                    🔄 Retake / Change
+                  </button>
+                  <button type="button" onclick="confirmSaveFacePhoto()" style="flex:1; background:linear-gradient(to right, #059669, #10b981); color:white; border:none; padding:9px; border-radius:10px; font-size:12px; font-weight:800; cursor:pointer; box-shadow:0 4px 12px rgba(16,185,129,0.35);">
+                    ✅ Set as Profile Photo
+                  </button>
+                </div>
+              </div>
+
+              <!-- Success Toast Notification -->
+              <div id="face-success-toast" style="display:none; background:#065f46; border:1px solid #34d399; color:#d1fae5; padding:10px 14px; border-radius:10px; font-size:12px; font-weight:bold; align-items:center; gap:8px; justify-content:center;">
+                <span>✓ Profile face photo updated and synced successfully!</span>
+              </div>
+
+            </div>
+
+            <!-- Footer -->
+            <div style="padding:12px 20px; border-top:1px solid #1e293b; background:#090d16; border-bottom-left-radius:20px; border-bottom-right-radius:20px; display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:11px; color:#64748b;">🔒 Private & securely stored</span>
+              <button onclick="closeFacePhotoCaptureModal()" style="background:transparent; color:#94a3b8; border:none; font-size:12px; font-weight:600; cursor:pointer;">Close</button>
+            </div>
+
+          </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Setup Drag and drop
+        const dropZone = document.getElementById("face-drop-zone");
+        if (dropZone) {
+          dropZone.addEventListener("dragover", (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = "#10b981";
+            dropZone.style.background = "#064e3b33";
+          });
+          dropZone.addEventListener("dragleave", (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = "#334155";
+            dropZone.style.background = "#0a101f";
+          });
+          dropZone.addEventListener("drop", (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = "#334155";
+            dropZone.style.background = "#0a101f";
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+              processFacePhotoFile(e.dataTransfer.files[0]);
+            }
+          });
+        }
+      }
+
+      function switchFacePhotoTab(tab) {
+        const liveBtn = document.getElementById("face-tab-live-btn");
+        const uploadBtn = document.getElementById("face-tab-upload-btn");
+        const liveView = document.getElementById("face-view-live");
+        const uploadView = document.getElementById("face-view-upload");
+        const previewView = document.getElementById("face-preview-container");
+
+        if (previewView) previewView.style.display = "none";
+
+        if (tab === "live") {
+          if (liveBtn) {
+            liveBtn.style.background = "#065f46";
+            liveBtn.style.borderColor = "#10b981";
+            liveBtn.style.color = "#ffffff";
+          }
+          if (uploadBtn) {
+            uploadBtn.style.background = "#1e293b";
+            uploadBtn.style.borderColor = "#334155";
+            uploadBtn.style.color = "#94a3b8";
+          }
+          if (liveView) liveView.style.display = "flex";
+          if (uploadView) uploadView.style.display = "none";
+          startLiveFaceCamera();
+        } else {
+          if (uploadBtn) {
+            uploadBtn.style.background = "#065f46";
+            uploadBtn.style.borderColor = "#10b981";
+            uploadBtn.style.color = "#ffffff";
+          }
+          if (liveBtn) {
+            liveBtn.style.background = "#1e293b";
+            liveBtn.style.borderColor = "#334155";
+            liveBtn.style.color = "#94a3b8";
+          }
+          if (uploadView) uploadView.style.display = "flex";
+          if (liveView) liveView.style.display = "none";
+          stopLiveFaceCamera();
+        }
+      }
+
+      async function startLiveFaceCamera() {
+        const video = document.getElementById("face-cam-video");
+        const errorView = document.getElementById("face-cam-error-view");
+        const guide = document.getElementById("face-cam-guide");
+        if (!video) return;
+
+        stopLiveFaceCamera();
+
+        try {
+          if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            throw new Error("getUserMedia not supported in this browser context");
+          }
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: faceCameraFacingMode,
+              width: { ideal: 640 },
+              height: { ideal: 640 }
+            },
+            audio: false
+          });
+          faceCameraStream = stream;
+          video.srcObject = stream;
+          video.style.transform = faceCameraFacingMode === "user" ? "scaleX(-1)" : "none";
+          if (errorView) errorView.style.display = "none";
+          if (guide) guide.style.display = "flex";
+        } catch (err) {
+          console.warn("Could not start face camera stream:", err);
+          if (errorView) errorView.style.display = "flex";
+          if (guide) guide.style.display = "none";
+        }
+      }
+
+      function stopLiveFaceCamera() {
+        if (faceCameraStream) {
+          faceCameraStream.getTracks().forEach(track => track.stop());
+          faceCameraStream = null;
+        }
+        const video = document.getElementById("face-cam-video");
+        if (video) video.srcObject = null;
+      }
+
+      function flipFaceCamera() {
+        faceCameraFacingMode = faceCameraFacingMode === "user" ? "environment" : "user";
+        startLiveFaceCamera();
+      }
+
+      function captureLiveFacePhoto() {
+        const video = document.getElementById("face-cam-video");
+        if (!video || !video.videoWidth) {
+          document.getElementById("face-cam-native-input")?.click();
+          return;
+        }
+
+        // Shutter flash animation
+        const flash = document.getElementById("face-cam-flash");
+        if (flash) {
+          flash.style.opacity = "1";
+          setTimeout(() => { flash.style.opacity = "0"; }, 150);
+        }
+
+        // Capture square crop
+        const canvas = document.createElement("canvas");
+        const w = video.videoWidth;
+        const h = video.videoHeight;
+        const size = Math.min(w, h);
+        const targetSize = Math.min(size, 512);
+
+        canvas.width = targetSize;
+        canvas.height = targetSize;
+        const ctx = canvas.getContext("2d");
+
+        // Handle front camera mirroring
+        if (faceCameraFacingMode === "user") {
+          ctx.translate(targetSize, 0);
+          ctx.scale(-1, 1);
+        }
+
+        const sx = (w - size) / 2;
+        const sy = (h - size) / 2;
+        ctx.drawImage(video, sx, sy, size, size, 0, 0, targetSize, targetSize);
+
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.88);
+        showFacePhotoPreview(dataUrl);
+      }
+
+      function handleFacePhotoFileInput(e) {
+        const file = e.target.files && e.target.files[0];
+        if (file) {
+          processFacePhotoFile(file);
+        }
+        e.target.value = "";
+      }
+
+      function processFacePhotoFile(file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement("canvas");
+            const size = Math.min(img.width, img.height);
+            const targetSize = Math.min(size, 512);
+            canvas.width = targetSize;
+            canvas.height = targetSize;
+            const ctx = canvas.getContext("2d");
+
+            const sx = (img.width - size) / 2;
+            const sy = (img.height - size) / 2;
+            ctx.drawImage(img, sx, sy, size, size, 0, 0, targetSize, targetSize);
+
+            const dataUrl = canvas.toDataURL("image/jpeg", 0.88);
+            showFacePhotoPreview(dataUrl);
+          };
+          img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+
+      function showFacePhotoPreview(dataUrl) {
+        facePhotoPendingDataUrl = dataUrl;
+        const previewView = document.getElementById("face-preview-container");
+        const previewImg = document.getElementById("face-captured-preview-img");
+        const liveView = document.getElementById("face-view-live");
+        const uploadView = document.getElementById("face-view-upload");
+
+        if (previewImg) previewImg.src = dataUrl;
+        if (previewView) previewView.style.display = "flex";
+        if (liveView) liveView.style.display = "none";
+        if (uploadView) uploadView.style.display = "none";
+
+        stopLiveFaceCamera();
+      }
+
+      function retakeFacePhoto() {
+        facePhotoPendingDataUrl = null;
+        const previewView = document.getElementById("face-preview-container");
+        if (previewView) previewView.style.display = "none";
+        switchFacePhotoTab("live");
+      }
+
+      function confirmSaveFacePhoto() {
+        if (!facePhotoPendingDataUrl) return;
+
+        const photo = facePhotoPendingDataUrl;
+        try {
+          localStorage.setItem("eliteride_rider_photo", photo);
+          const u = JSON.parse(localStorage.getItem("eliteride_user_profile") || "{}");
+          u.riderPhotoUrl = photo;
+          localStorage.setItem("eliteride_user_profile", JSON.stringify(u));
+        } catch (e) {
+          console.warn("Storage write error:", e);
+        }
+
+        // Notify app
+        window.dispatchEvent(new Event("eliteride_photo_updated"));
+        ensureRiderPhotoInHeader();
+
+        // Update active thumbnail in modal
+        const thumb = document.getElementById("active-face-photo-thumb");
+        if (thumb) thumb.src = photo;
+
+        // Trigger callback if opened from component
+        if (typeof onFacePhotoSavedCallback === "function") {
+          onFacePhotoSavedCallback(photo);
+        }
+
+        // Show toast
+        const toast = document.getElementById("face-success-toast");
+        if (toast) {
+          toast.style.display = "flex";
+          setTimeout(() => {
+            toast.style.display = "none";
+            closeFacePhotoCaptureModal();
+          }, 1200);
+        } else {
+          closeFacePhotoCaptureModal();
+        }
+      }
+
+      function openFacePhotoCaptureModal(callback) {
+        injectFaceProfilePhotoModal();
+        onFacePhotoSavedCallback = callback || null;
+        facePhotoPendingDataUrl = null;
+
+        const modal = document.getElementById("elite-face-photo-modal");
+        if (modal) {
+          modal.style.display = "flex";
+
+          // Update active thumb
+          const thumb = document.getElementById("active-face-photo-thumb");
+          if (thumb) {
+            const current = localStorage.getItem("eliteride_rider_photo") || 
+                            (JSON.parse(localStorage.getItem("eliteride_user_profile") || "{}").riderPhotoUrl) || 
+                            "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250";
+            thumb.src = current;
+          }
+
+          const toast = document.getElementById("face-success-toast");
+          if (toast) toast.style.display = "none";
+
+          switchFacePhotoTab("live");
+        }
+      }
+
+      function closeFacePhotoCaptureModal() {
+        stopLiveFaceCamera();
+        const modal = document.getElementById("elite-face-photo-modal");
+        if (modal) modal.style.display = "none";
+        facePhotoPendingDataUrl = null;
+        onFacePhotoSavedCallback = null;
+      }
+
+      window.openFacePhotoCaptureModal = openFacePhotoCaptureModal;
+      window.closeFacePhotoCaptureModal = closeFacePhotoCaptureModal;
 
       function applyLanguageLocalization(lang) {
         const dict = {
