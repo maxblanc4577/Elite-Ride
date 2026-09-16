@@ -31,7 +31,6 @@
     <script type="module" crossorigin src="/assets/index-bkkyw8kf.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/vendor-react-bigvu1sb.js">
     <link rel="modulepreload" crossorigin href="/assets/vendor-ui-dlrpevhr.js">
-    <link rel="modulepreload" crossorigin href="/assets/vendor-firebase-k-bqH8i7.js">
     <link rel="modulepreload" crossorigin href="/assets/vendor-charts-b1k6sbri.js">
     <link rel="modulepreload" crossorigin href="/assets/vendor-pdf-dt66vt1p.js">
     <link rel="stylesheet" crossorigin href="/assets/index-b-ececke.css">
@@ -80,24 +79,6 @@
         margin-bottom: 0px !important;
         border: none !important;
         opacity: 0 !important;
-      }
-      div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > select:nth-of-type(1) {
-        width: 345.5px !important;
-        height: 30.5px !important;
-        border-radius: 9px !important;
-        margin-top: -88px !important;
-      }
-      div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) {
-        height: 35px !important;
-        width: 292.266px !important;
-        margin-top: 8px !important;
-        padding-top: 0px !important;
-        padding-left: 0px !important;
-        padding-right: 1px !important;
-        padding-bottom: 2px !important;
-        margin-right: -10px !important;
-        margin-bottom: -12px !important;
-        margin-left: -44px !important;
       }
     </style>
   </head>
@@ -177,57 +158,59 @@
         window.eliteGroupRideActive = false;
         const widget = document.createElement('div');
         widget.id = 'elite-vehicle-widget';
-        widget.className = 'fixed bottom-4 right-4 z-50 bg-slate-900/95 border border-emerald-500/40 rounded-2xl p-4 shadow-2xl backdrop-blur-md text-white max-w-sm w-full transition-all duration-300';
+        widget.className = 'fixed bottom-20 right-4 z-50 bg-slate-900/95 border border-emerald-500/40 rounded-2xl p-3 shadow-2xl backdrop-blur-md text-white max-w-xs sm:max-w-sm w-full transition-all duration-300 max-h-[80vh] overflow-y-auto';
         widget.innerHTML = `
-          <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center justify-between">
             <div class="flex items-center space-x-2">
-              <span class="text-xl">🚕</span>
+              <span class="text-lg">🚕</span>
               <div>
-                <h4 class="font-bold text-sm tracking-wide text-emerald-400">Select Vehicle Category</h4>
-                <p class="text-xs text-slate-400">Unique pricing & group ride sharing</p>
+                <h4 class="font-bold text-xs sm:text-sm tracking-wide text-emerald-400">Vehicle Category</h4>
+                <p class="text-[10px] text-slate-400">Class & shared ride options</p>
               </div>
             </div>
-            <button id="toggle-veh-btn" class="text-slate-400 hover:text-white text-xs bg-slate-800 px-2 py-1 rounded-lg">Minimize</button>
+            <button id="toggle-veh-btn" class="text-slate-300 hover:text-white text-xs bg-slate-800 hover:bg-slate-700 px-2.5 py-1 rounded-lg border border-slate-700 transition-all font-medium">Expand</button>
           </div>
 
-          <!-- Group Ride Toggle Widget -->
-          <div class="mb-3 bg-slate-800/80 border border-slate-700/80 rounded-xl p-2.5 flex items-center justify-between">
-            <div class="flex items-center space-x-2">
-              <span class="text-lg">👥</span>
-              <div>
-                <div class="text-xs font-bold text-sky-400">Group Ride Share</div>
-                <div class="text-[10px] text-slate-400">Save 20% & share with passengers</div>
+          <div id="veh-body-area" style="display:none;" class="mt-3">
+            <!-- Group Ride Toggle Widget -->
+            <div class="mb-3 bg-slate-800/80 border border-slate-700/80 rounded-xl p-2.5 flex items-center justify-between">
+              <div class="flex items-center space-x-2">
+                <span class="text-lg">👥</span>
+                <div>
+                  <div class="text-xs font-bold text-sky-400">Group Ride Share</div>
+                  <div class="text-[10px] text-slate-400">Save 20% & share with passengers</div>
+                </div>
               </div>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="group-ride-checkbox" class="sr-only peer">
+                <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+              </label>
             </div>
-            <label class="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" id="group-ride-checkbox" class="sr-only peer">
-              <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
-            </label>
-          </div>
 
-          <!-- Capacity Indicator Badge -->
-          <div id="group-ride-capacity-badge" class="mb-3 text-[11px] bg-slate-950/60 border border-slate-800 rounded-lg p-2 flex items-center justify-between text-slate-300" style="display:none;">
-            <span class="flex items-center gap-1">🚌 Shared Capacity:</span>
-            <span class="font-bold text-emerald-400">2 / 4 Seats Available</span>
-          </div>
+            <!-- Capacity Indicator Badge -->
+            <div id="group-ride-capacity-badge" class="mb-3 text-[11px] bg-slate-950/60 border border-slate-800 rounded-lg p-2 flex items-center justify-between text-slate-300" style="display:none;">
+              <span class="flex items-center gap-1">🚌 Shared Capacity:</span>
+              <span class="font-bold text-emerald-400">2 / 4 Seats Available</span>
+            </div>
 
-          <div id="veh-options-list" class="space-y-2">
-            ${Object.entries(window.eliteVehicleMultipliers).map(([key, cat]) => `
-              <div data-category="${key}" class="veh-cat-card cursor-pointer p-2.5 rounded-xl border ${key === window.eliteVehicleCategory ? 'border-emerald-500 bg-emerald-950/40 shadow-emerald-500/10 shadow-lg' : 'border-slate-800 bg-slate-800/50 hover:bg-slate-800'} transition-all flex items-center justify-between">
-                <div class="flex items-center space-x-3">
-                  <span class="text-2xl">${cat.icon}</span>
-                  <div>
-                    <div class="font-semibold text-sm">${cat.name}</div>
-                    <div class="text-[11px] text-slate-400">${cat.desc}</div>
+            <div id="veh-options-list" class="space-y-2">
+              ${Object.entries(window.eliteVehicleMultipliers).map(([key, cat]) => `
+                <div data-category="${key}" class="veh-cat-card cursor-pointer p-2 rounded-xl border ${key === window.eliteVehicleCategory ? 'border-emerald-500 bg-emerald-950/40 shadow-emerald-500/10 shadow-lg' : 'border-slate-800 bg-slate-800/50 hover:bg-slate-800'} transition-all flex items-center justify-between">
+                  <div class="flex items-center space-x-2.5">
+                    <span class="text-xl">${cat.icon}</span>
+                    <div>
+                      <div class="font-semibold text-xs">${cat.name}</div>
+                      <div class="text-[10px] text-slate-400">${cat.desc}</div>
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <span class="veh-mult-badge inline-block px-2 py-0.5 rounded-full text-xs font-bold ${key === window.eliteVehicleCategory ? 'bg-emerald-500 text-slate-950' : 'bg-slate-700 text-slate-300'}" data-base-mult="${cat.multiplier}">
+                      ${cat.multiplier}x
+                    </span>
                   </div>
                 </div>
-                <div class="text-right">
-                  <span class="veh-mult-badge inline-block px-2 py-0.5 rounded-full text-xs font-bold ${key === window.eliteVehicleCategory ? 'bg-emerald-500 text-slate-950' : 'bg-slate-700 text-slate-300'}" data-base-mult="${cat.multiplier}">
-                    ${cat.multiplier}x
-                  </span>
-                </div>
-              </div>
-            `).join('')}
+              `).join('')}
+            </div>
           </div>
         `;
         document.body.appendChild(widget);
@@ -258,7 +241,7 @@
             
             widget.querySelectorAll('.veh-cat-card').forEach(c => {
               const isSel = c.getAttribute('data-category') === catKey;
-              c.className = `veh-cat-card cursor-pointer p-2.5 rounded-xl border ${isSel ? 'border-emerald-500 bg-emerald-950/40 shadow-emerald-500/10 shadow-lg' : 'border-slate-800 bg-slate-800/50 hover:bg-slate-800'} transition-all flex items-center justify-between`;
+              c.className = `veh-cat-card cursor-pointer p-2 rounded-xl border ${isSel ? 'border-emerald-500 bg-emerald-950/40 shadow-emerald-500/10 shadow-lg' : 'border-slate-800 bg-slate-800/50 hover:bg-slate-800'} transition-all flex items-center justify-between`;
               const badge = c.querySelector('.veh-mult-badge');
               badge.className = `veh-mult-badge inline-block px-2 py-0.5 rounded-full text-xs font-bold ${isSel ? 'bg-emerald-500 text-slate-950' : 'bg-slate-700 text-slate-300'}`;
             });
@@ -268,12 +251,12 @@
           });
         });
 
-        let minimized = false;
+        let minimized = true;
         const toggleBtn = widget.querySelector('#toggle-veh-btn');
-        const listDiv = widget.querySelector('#veh-options-list');
+        const bodyArea = widget.querySelector('#veh-body-area');
         toggleBtn.addEventListener('click', () => {
           minimized = !minimized;
-          listDiv.style.display = minimized ? 'none' : 'block';
+          bodyArea.style.display = minimized ? 'none' : 'block';
           toggleBtn.innerText = minimized ? 'Expand' : 'Minimize';
         });
       }
@@ -282,19 +265,19 @@
         if (document.getElementById('elite-estimation-widget')) return;
         const estWidget = document.createElement('div');
         estWidget.id = 'elite-estimation-widget';
-        estWidget.className = 'fixed bottom-4 left-4 z-50 bg-slate-900/95 border border-sky-500/40 rounded-2xl p-4 shadow-2xl backdrop-blur-md text-white max-w-sm w-full transition-all duration-300';
+        estWidget.className = 'fixed bottom-4 left-4 z-50 bg-slate-900/95 border border-sky-500/40 rounded-2xl p-3 shadow-2xl backdrop-blur-md text-white max-w-xs sm:max-w-sm w-full transition-all duration-300 max-h-[80vh] overflow-y-auto';
         estWidget.innerHTML = `
-          <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center justify-between">
             <div class="flex items-center space-x-2">
-              <span class="text-xl">📊</span>
+              <span class="text-lg">📊</span>
               <div>
-                <h4 class="font-bold text-sm tracking-wide text-sky-400">Ride Fare & Time Estimator</h4>
-                <p class="text-xs text-slate-400">Instant route estimate & distance</p>
+                <h4 class="font-bold text-xs sm:text-sm tracking-wide text-sky-400">Fare & Route Estimator</h4>
+                <p class="text-[10px] text-slate-400">Instant fare calculate & ETA</p>
               </div>
             </div>
-            <button id="toggle-est-btn" class="text-slate-400 hover:text-white text-xs bg-slate-800 px-2 py-1 rounded-lg">Minimize</button>
+            <button id="toggle-est-btn" class="text-slate-300 hover:text-white text-xs bg-slate-800 hover:bg-slate-700 px-2.5 py-1 rounded-lg border border-slate-700 transition-all font-medium">Expand</button>
           </div>
-          <div id="est-content-area" class="space-y-3 text-xs">
+          <div id="est-content-area" style="display:none;" class="space-y-3 text-xs mt-3">
             <div>
               <label class="text-[11px] text-slate-400 block mb-1">Pickup Location</label>
               <select id="est-pickup" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2 text-white">
@@ -360,7 +343,7 @@
           alert(`✓ Estimate applied successfully!\nFare: ${fare} | Estimated Time: ${time}\nYour ride request has been dispatched to nearby Elite drivers.`);
         });
 
-        let minimizedEst = false;
+        let minimizedEst = true;
         const toggleEstBtn = document.getElementById('toggle-est-btn');
         const estContent = document.getElementById('est-content-area');
         toggleEstBtn.addEventListener('click', () => {
@@ -886,6 +869,62 @@
           setTimeout(() => { clearTotalAmountToZero(); }, 400);
         };
 
+        const saveAccBtn = document.getElementById('adm-save-acc-btn');
+        if (saveAccBtn) {
+          saveAccBtn.onclick = () => {
+            const name = document.getElementById('adm-acc-name').value;
+            const bal = document.getElementById('adm-acc-balance').value;
+            document.getElementById('adm-acc-res').innerText = `Changes saved! Updated ${name} with EC$ ${bal} credit.`;
+            setTimeout(() => { clearTotalAmountToZero(); }, 400);
+          };
+        }
+      }
+
+      function getOrCreateQuickActionsDock() {
+        let dock = document.getElementById('elite-quick-actions-dock');
+        if (!dock) {
+          dock = document.createElement('div');
+          dock.id = 'elite-quick-actions-dock';
+          dock.style.cssText = 'position:fixed; bottom:20px; right:20px; z-index:99998; display:flex; flex-direction:column-reverse; align-items:flex-end; gap:10px; font-family:sans-serif; pointer-events:none;';
+
+          const toggleBtn = document.createElement('button');
+          toggleBtn.id = 'elite-quick-tools-toggle';
+          toggleBtn.innerHTML = '⚡ Quick Tools <span id="elite-tools-counter" style="background:#0284c7; color:white; border-radius:10px; padding:1px 7px; font-size:11px; margin-left:4px; font-weight:bold;">6</span>';
+          toggleBtn.style.cssText = 'pointer-events:auto; background:#0f172a; color:#38bdf8; border:2px solid #0284c7; padding:10px 18px; border-radius:30px; font-weight:700; font-size:13px; cursor:pointer; box-shadow:0 8px 24px rgba(0,0,0,0.6); display:flex; align-items:center; gap:6px; transition:all 0.2s;';
+
+          const itemsContainer = document.createElement('div');
+          itemsContainer.id = 'elite-quick-tools-items';
+          itemsContainer.style.cssText = 'display:none; flex-direction:column; gap:8px; align-items:flex-end; max-height:65vh; overflow-y:auto; padding-right:2px;';
+
+          let isOpen = false;
+          toggleBtn.onclick = (e) => {
+            e.stopPropagation();
+            isOpen = !isOpen;
+            itemsContainer.style.display = isOpen ? 'flex' : 'none';
+            toggleBtn.style.background = isOpen ? '#0284c7' : '#0f172a';
+            toggleBtn.style.color = isOpen ? '#ffffff' : '#38bdf8';
+            toggleBtn.innerHTML = isOpen 
+              ? '✕ Close Tools' 
+              : '⚡ Quick Tools <span id="elite-tools-counter" style="background:#0284c7; color:white; border-radius:10px; padding:1px 7px; font-size:11px; margin-left:4px; font-weight:bold;">6</span>';
+          };
+
+          document.addEventListener('click', (e) => {
+            if (isOpen && !dock.contains(e.target)) {
+              isOpen = false;
+              itemsContainer.style.display = 'none';
+              toggleBtn.style.background = '#0f172a';
+              toggleBtn.style.color = '#38bdf8';
+              toggleBtn.innerHTML = '⚡ Quick Tools <span id="elite-tools-counter" style="background:#0284c7; color:white; border-radius:10px; padding:1px 7px; font-size:11px; margin-left:4px; font-weight:bold;">6</span>';
+            }
+          });
+
+          dock.appendChild(toggleBtn);
+          dock.appendChild(itemsContainer);
+          document.body.appendChild(dock);
+        }
+        return document.getElementById('elite-quick-tools-items');
+      }
+
       function injectRideChatInterface() {
         // Inject CSS keyframe animation for chat messages
         if (!document.getElementById('elite-chat-anim-style')) {
@@ -919,33 +958,15 @@
           chatBtn = document.createElement('div');
           chatBtn.id = 'elite-ride-chat-btn';
           chatBtn.innerHTML = '💬 Driver Chat <span id="elite-chat-badge" style="background:#ef4444; color:white; border-radius:50%; padding:2px 6px; font-size:10px; margin-left:4px;">1</span>';
-          chatBtn.style.cssText = 'position:fixed; bottom:20px; left:20px; z-index:99998; background:#0284c7; color:white; padding:12px 18px; border-radius:30px; font-weight:600; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.4); font-size:14px; font-family:sans-serif; display:flex; align-items:center; gap:8px; border:2px solid #38bdf8; transition:all 0.2s;';
+          chatBtn.style.cssText = 'pointer-events:auto; position:relative; background:#0284c7; color:white; padding:10px 16px; border-radius:30px; font-weight:600; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.4); font-size:13px; font-family:sans-serif; display:flex; align-items:center; gap:8px; border:2px solid #38bdf8; transition:all 0.2s; width:fit-content;';
           chatBtn.onclick = () => {
             toggleRideChatModal();
             const badge = document.getElementById('elite-chat-badge');
             if (badge) badge.style.display = 'none';
           };
-          document.body.appendChild(chatBtn);
+          const dockContainer = getOrCreateQuickActionsDock();
+          dockContainer.appendChild(chatBtn);
         }
-
-        const trackingHeaders = Array.from(document.querySelectorAll('div, section, header')).filter(el => {
-          const t = (el.innerText || '').toLowerCase();
-          return (t.includes('driver') || t.includes('track ride') || t.includes('eta')) && el.children.length < 5;
-        });
-
-        trackingHeaders.forEach(header => {
-          if (!header.querySelector('#elite-inline-chat-btn')) {
-            const inlineBtn = document.createElement('button');
-            inlineBtn.id = 'elite-inline-chat-btn';
-            inlineBtn.innerHTML = '💬 Secure Driver Chat';
-            inlineBtn.style.cssText = 'background:#0284c7; color:white; border:none; padding:8px 14px; border-radius:8px; font-weight:600; cursor:pointer; font-size:13px; margin-left:10px; display:inline-flex; align-items:center; gap:6px;';
-            inlineBtn.onclick = (e) => {
-              e.stopPropagation();
-              toggleRideChatModal();
-            };
-            header.appendChild(inlineBtn);
-          }
-        });
       }
 
       function playNotificationChime() {
@@ -1079,19 +1100,16 @@
             </div>
           </div>
 
-           <!-- Encryption & Live Map Banner -->
+          <!-- Encryption & Live Map Banner -->
           <div id="chat-map-banner" style="background:#0f172a; border-bottom:1px solid #334155; padding:12px 14px; display:none; flex-direction:column; gap:8px; font-size:12px;">
             <div style="display:flex; justify-content:space-between; align-items:center; color:#38bdf8; font-weight:600;">
-              <span style="display:flex; align-items:center; gap:6px;">🗺️ Dominica Live GPS & Accessible SVG Map</span>
-              <div style="display:flex; gap:6px; align-items:center;">
-                <button id="map-high-contrast-toggle" title="Toggle High-Contrast Mode for Visually Impaired Users" onclick="window.toggleMapHighContrast()" style="background:#1e293b; border:1px solid #38bdf8; color:#38bdf8; padding:2px 8px; border-radius:6px; font-size:10px; font-weight:bold; cursor:pointer;">⚡ High-Contrast</button>
-                <span id="map-eta-badge" style="background:#0284c730; color:#38bdf8; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:bold;">ETA: 2 min</span>
-              </div>
+              <span style="display:flex; align-items:center; gap:6px;">🗺️ Dominica Live GPS & SVG Map</span>
+              <span id="map-eta-badge" style="background:#0284c730; color:#38bdf8; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:bold;">ETA: 2 min</span>
             </div>
 
-            <!-- SVG Custom Map Canvas with Accessibility Viewbox & Keyboard Controls -->
-            <div style="position:relative; background:#111827; border:1px solid #334155; border-radius:10px; overflow:hidden; height:180px; display:flex; align-items:center; justify-content:center;" tabindex="0" aria-label="Interactive Dominica Live Map. Use Plus and Minus keys to zoom, and R to recenter." id="svg-map-wrapper">
-              <svg id="dominica-svg-map" viewBox="0 0 320 180" style="width:100%; height:100%; background:#0b1329; transition:filter 0.3s ease;">
+            <!-- SVG Custom Map Canvas -->
+            <div style="position:relative; background:#111827; border:1px solid #334155; border-radius:10px; overflow:hidden; height:160px; display:flex; align-items:center; justify-content:center;">
+              <svg id="dominica-svg-map" viewBox="0 0 320 180" style="width:100%; height:100%; background:#0b1329;">
                 <defs>
                   <linearGradient id="islandGrad" x1="0%" y1="0%" x2="100%" y2="100%">
                     <stop offset="0%" stop-color="#064e3b" />
@@ -1102,62 +1120,47 @@
                     <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.5"/>
                     <stop offset="100%" stop-color="#38bdf8" stop-opacity="0"/>
                   </radialGradient>
-                  <!-- High Contrast SVG Color Matrix Filter -->
-                  <filter id="highContrastMapFilter" color-interpolation-filters="sRGB">
-                    <feColorMatrix type="matrix" values="
-                      1.5  0   0   0  0.1
-                      0   1.5  0   0  0.1
-                      0   0   1.5  0  0.2
-                      0   0   0    1  0" />
-                    <feComponentTransfer>
-                      <feFuncR type="linear" slope="1.3" intercept="0.05"/>
-                      <feFuncG type="linear" slope="1.3" intercept="0.05"/>
-                      <feFuncB type="linear" slope="1.4" intercept="0.1"/>
-                    </feComponentTransfer>
-                  </filter>
                 </defs>
 
                 <!-- Ocean background grid lines -->
-                <line x1="0" y1="45" x2="320" y2="45" stroke="#334155" stroke-width="1.5" stroke-dasharray="4" />
-                <line x1="0" y1="90" x2="320" y2="90" stroke="#334155" stroke-width="1.5" stroke-dasharray="4" />
-                <line x1="0" y1="135" x2="320" y2="135" stroke="#334155" stroke-width="1.5" stroke-dasharray="4" />
-                <line x1="80" y1="0" x2="80" y2="180" stroke="#334155" stroke-width="1.5" stroke-dasharray="4" />
-                <line x1="160" y1="0" x2="160" y2="180" stroke="#334155" stroke-width="1.5" stroke-dasharray="4" />
-                <line x1="240" y1="0" x2="240" y2="180" stroke="#334155" stroke-width="1.5" stroke-dasharray="4" />
+                <line x1="0" y1="45" x2="320" y2="45" stroke="#1e293b" stroke-width="1" stroke-dasharray="4" />
+                <line x1="0" y1="90" x2="320" y2="90" stroke="#1e293b" stroke-width="1" stroke-dasharray="4" />
+                <line x1="0" y1="135" x2="320" y2="135" stroke="#1e293b" stroke-width="1" stroke-dasharray="4" />
+                <line x1="80" y1="0" x2="80" y2="180" stroke="#1e293b" stroke-width="1" stroke-dasharray="4" />
+                <line x1="160" y1="0" x2="160" y2="180" stroke="#1e293b" stroke-width="1" stroke-dasharray="4" />
+                <line x1="240" y1="0" x2="240" y2="180" stroke="#1e293b" stroke-width="1" stroke-dasharray="4" />
 
                 <!-- Dominica Island Contour Path -->
-                <path d="M140,15 C170,25 185,45 190,70 C195,95 205,120 185,150 C165,175 130,170 120,155 C110,140 115,115 105,90 C95,65 110,35 140,15 Z" fill="url(#islandGrad)" stroke="#34d399" stroke-width="2.5" opacity="0.95" />
+                <path d="M140,15 C170,25 185,45 190,70 C195,95 205,120 185,150 C165,175 130,170 120,155 C110,140 115,115 105,90 C95,65 110,35 140,15 Z" fill="url(#islandGrad)" stroke="#10b981" stroke-width="1.5" opacity="0.85" />
 
                 <!-- Island Interior Mountain Peaks -->
-                <circle cx="150" cy="75" r="5" fill="#6ee7b7" />
-                <text x="158" y="78" fill="#ffffff" font-size="9" font-weight="bold" font-family="sans-serif">Morne Diablotins</text>
-                <circle cx="155" cy="120" r="5" fill="#6ee7b7" />
-                <text x="163" y="123" fill="#ffffff" font-size="9" font-weight="bold" font-family="sans-serif">Morne Trois Pitons</text>
+                <circle cx="150" cy="75" r="4" fill="#34d399" opacity="0.6" />
+                <text x="158" y="78" fill="#6ee7b7" font-size="8" font-family="sans-serif">Morne Diablotins</text>
+                <circle cx="155" cy="120" r="4" fill="#34d399" opacity="0.6" />
+                <text x="163" y="123" fill="#6ee7b7" font-size="8" font-family="sans-serif">Morne Trois Pitons</text>
 
                 <!-- Navigation Route Path -->
-                <path id="svg-route-path" d="M 120 150 Q 140 110 160 85 T 180 35" fill="none" stroke="#60a5fa" stroke-width="4" stroke-dasharray="6,4" opacity="0.95" />
+                <path id="svg-route-path" d="M 120 150 Q 140 110 160 85 T 180 35" fill="none" stroke="#38bdf8" stroke-width="3" stroke-dasharray="6,4" opacity="0.8" />
 
                 <!-- Pickup Marker -->
-                <circle cx="180" cy="35" r="9" fill="#ef4444" opacity="0.4" />
-                <circle cx="180" cy="35" r="5" fill="#f87171" stroke="#ffffff" stroke-width="1.5" />
-                <text x="192" y="38" fill="#ffffff" font-size="10" font-weight="bold" font-family="sans-serif">Pickup</text>
+                <circle cx="180" cy="35" r="7" fill="#ef4444" opacity="0.3" />
+                <circle cx="180" cy="35" r="4" fill="#ef4444" />
+                <text x="190" y="38" fill="#fca5a5" font-size="9" font-weight="bold" font-family="sans-serif">Pickup</text>
 
                 <!-- Driver Live Marker -->
                 <g id="svg-driver-marker" transform="translate(120, 150)">
-                  <circle cx="0" cy="0" r="14" fill="url(#radarPulse)">
-                    <animate attributeName="r" values="6;18;6" dur="2s" repeatCount="indefinite"/>
-                    <animate attributeName="opacity" values="0.9;0;0.9" dur="2s" repeatCount="indefinite"/>
+                  <circle cx="0" cy="0" r="12" fill="url(#radarPulse)">
+                    <animate attributeName="r" values="6;16;6" dur="2s" repeatCount="indefinite"/>
+                    <animate attributeName="opacity" values="0.8;0;0.8" dur="2s" repeatCount="indefinite"/>
                   </circle>
-                  <circle cx="0" cy="0" r="7" fill="#38bdf8" stroke="#ffffff" stroke-width="2"/>
-                  <text x="12" y="4" fill="#ffffff" font-size="10" font-weight="bold" font-family="sans-serif">🚗 Marcus</text>
+                  <circle cx="0" cy="0" r="6" fill="#0284c7" stroke="#ffffff" stroke-width="1.5"/>
+                  <text x="10" y="3" fill="#38bdf8" font-size="9" font-weight="bold" font-family="sans-serif">🚗 Marcus</text>
                 </g>
               </svg>
 
-              <!-- Keyboard-Accessible Zoom & Recenter Controls Overlay -->
-              <div style="position:absolute; bottom:8px; right:8px; display:flex; gap:4px; align-items:center;">
-                <button id="map-zoom-in-btn" aria-label="Zoom In Map" title="Zoom In (Key: +)" onclick="window.zoomMapIn()" style="background:#1e293b; border:1px solid #38bdf8; color:#38bdf8; width:26px; height:26px; border-radius:6px; font-weight:bold; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center;">+</button>
-                <button id="map-zoom-out-btn" aria-label="Zoom Out Map" title="Zoom Out (Key: -)" onclick="window.zoomMapOut()" style="background:#1e293b; border:1px solid #38bdf8; color:#38bdf8; width:26px; height:26px; border-radius:6px; font-weight:bold; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center;">-</button>
-                <button id="map-recenter-btn" aria-label="Recenter Map" title="Recenter (Key: R)" onclick="window.resetMapProgress()" style="background:#1e293b; border:1px solid #475569; color:#cbd5e1; padding:3px 8px; border-radius:6px; font-size:10px; font-weight:bold; cursor:pointer;">Recenter</button>
+              <!-- Map Controls Overlay -->
+              <div style="position:absolute; bottom:6px; right:6px; display:flex; gap:4px;">
+                <button id="map-recenter-btn" style="background:#1e293b; border:1px solid #475569; color:#cbd5e1; padding:2px 6px; border-radius:4px; font-size:10px; cursor:pointer;" onclick="resetMapProgress()">Recenter</button>
               </div>
             </div>
 
@@ -1220,59 +1223,6 @@
           const sosBanner = document.getElementById('chat-sos-banner');
           if (sosBanner) sosBanner.style.display = 'none';
         };
-
-        let mapZoomLevel = 1.0;
-        let mapHighContrastActive = false;
-
-        window.zoomMapIn = function() {
-          mapZoomLevel = Math.min(2.5, mapZoomLevel + 0.25);
-          applyMapZoomAndViewBox();
-        };
-
-        window.zoomMapOut = function() {
-          mapZoomLevel = Math.max(0.75, mapZoomLevel - 0.25);
-          applyMapZoomAndViewBox();
-        };
-
-        window.toggleMapHighContrast = function() {
-          mapHighContrastActive = !mapHighContrastActive;
-          const svgEl = document.getElementById('dominica-svg-map');
-          const toggleBtn = document.getElementById('map-high-contrast-toggle');
-          if (svgEl) {
-            svgEl.style.filter = mapHighContrastActive ? 'url(#highContrastMapFilter) contrast(180%)' : 'none';
-          }
-          if (toggleBtn) {
-            toggleBtn.style.background = mapHighContrastActive ? '#38bdf8' : '#1e293b';
-            toggleBtn.style.color = mapHighContrastActive ? '#0f172a' : '#38bdf8';
-            toggleBtn.innerText = mapHighContrastActive ? '⚡ Contrast ON' : '⚡ High-Contrast';
-          }
-        };
-
-        function applyMapZoomAndViewBox() {
-          const svgEl = document.getElementById('dominica-svg-map');
-          if (!svgEl) return;
-          let w = 320 / mapZoomLevel;
-          let h = 180 / mapZoomLevel;
-          let x = (320 - w) / 2;
-          let y = (180 - h) / 2;
-          svgEl.setAttribute('viewBox', `${x} ${y} ${w} ${h}`);
-        }
-
-        const mapWrapper = document.getElementById('svg-map-wrapper');
-        if (mapWrapper) {
-          mapWrapper.addEventListener('keydown', (e) => {
-            if (e.key === '+' || e.key === '=') {
-              e.preventDefault();
-              window.zoomMapIn();
-            } else if (e.key === '-' || e.key === '_') {
-              e.preventDefault();
-              window.zoomMapOut();
-            } else if (e.key === 'r' || e.key === 'R') {
-              e.preventDefault();
-              window.resetMapProgress();
-            }
-          });
-        }
 
         let tripProgressPercent = 15;
         function updateTripProgressBar() {
@@ -1551,24 +1501,26 @@
       }
 
       function injectRideHistoryAndDriverPanel() {
-        // 1. Ride History floating button
+        // 1. Ride History button in quick dock
         if (!document.getElementById('elite-history-btn')) {
           const histBtn = document.createElement('div');
           histBtn.id = 'elite-history-btn';
           histBtn.innerHTML = '📜 Ride History';
-          histBtn.style.cssText = 'position:fixed; bottom:20px; right:20px; z-index:99998; background:#0f172a; color:#38bdf8; padding:12px 18px; border-radius:30px; font-weight:600; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.4); font-size:14px; font-family:sans-serif; display:flex; align-items:center; gap:8px; border:2px solid #0284c7; transition:all 0.2s;';
+          histBtn.style.cssText = 'pointer-events:auto; position:relative; background:#0f172a; color:#38bdf8; padding:10px 16px; border-radius:30px; font-weight:600; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.4); font-size:13px; font-family:sans-serif; display:flex; align-items:center; gap:8px; border:2px solid #0284c7; transition:all 0.2s; width:fit-content;';
           histBtn.onclick = () => toggleRideHistoryModal();
-          document.body.appendChild(histBtn);
+          const dockContainer = getOrCreateQuickActionsDock();
+          dockContainer.appendChild(histBtn);
         }
 
-        // 2. Driver Real-Time Location Sharing floating panel button
+        // 2. Driver Real-Time Location Sharing button in quick dock
         if (!document.getElementById('elite-driver-panel-btn')) {
           const drvBtn = document.createElement('div');
           drvBtn.id = 'elite-driver-panel-btn';
           drvBtn.innerHTML = '🚗 Driver Portal';
-          drvBtn.style.cssText = 'position:fixed; bottom:80px; right:20px; z-index:99998; background:#059669; color:white; padding:12px 18px; border-radius:30px; font-weight:600; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.4); font-size:14px; font-family:sans-serif; display:flex; align-items:center; gap:8px; border:2px solid #34d399; transition:all 0.2s;';
+          drvBtn.style.cssText = 'pointer-events:auto; position:relative; background:#059669; color:white; padding:10px 16px; border-radius:30px; font-weight:600; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.4); font-size:13px; font-family:sans-serif; display:flex; align-items:center; gap:8px; border:2px solid #34d399; transition:all 0.2s; width:fit-content;';
           drvBtn.onclick = () => toggleDriverPortalModal();
-          document.body.appendChild(drvBtn);
+          const dockContainer = getOrCreateQuickActionsDock();
+          dockContainer.appendChild(drvBtn);
         }
       }
 
@@ -1688,7 +1640,7 @@
             <!-- GPS Telemetry Controls -->
             <div style="background:#1e293b; border:1px solid #475569; border-radius:12px; padding:12px; font-family:monospace; font-size:12px; color:#38bdf8; display:flex; flex-direction:column; gap:6px;">
               <div>Latitude: <span id="drv-live-lat" style="color:white;">17.12840</span>° N | Longitude: <span id="drv-live-lng" style="color:white;">-61.83920</span>° W</div>
-              <div>Firebase DB Sync: <span style="color:#34d399;">Connected (Active)</span></div>
+              <div>Database Sync: <span style="color:#34d399;">Connected (Local & Active)</span></div>
             </div>
 
             <button id="drv-share-gps-btn" style="background:#059669; color:white; border:none; padding:12px; border-radius:10px; font-weight:bold; cursor:pointer; font-size:14px; box-shadow:0 4px 12px rgba(5,150,105,0.4); text-align:center;">📡 Share Real-Time GPS Location</button>
@@ -1771,7 +1723,7 @@
           driverStatus = driverStatus === 'available' ? 'busy' : 'available';
           localStorage.setItem('elite_driver_status', driverStatus);
           updateStatusUI();
-          localStorage.setItem('elite_firebase_dispatch_sync', JSON.stringify({ driver: 'Marcus Brody', status: driverStatus, time: Date.now() }));
+          localStorage.setItem('elite_dispatch_sync', JSON.stringify({ driver: 'Marcus Brody', status: driverStatus, time: Date.now() }));
         };
 
         const toggleViewBtn = document.getElementById('drv-toggle-view-btn');
@@ -1811,7 +1763,7 @@
           setTimeout(() => {
             btn.innerText = "📡 Share Real-Time GPS Location";
             btn.style.background = '#059669';
-            status.innerText = "✓ Successfully pushed live coordinates to Firebase Realtime DB!";
+            status.innerText = "✓ Successfully pushed live coordinates to real-time dispatch!";
             setTimeout(() => { status.innerText = ""; }, 4000);
           }, 800);
         };
@@ -1822,9 +1774,10 @@
           const safeBtn = document.createElement('div');
           safeBtn.id = 'elite-safety-center-btn';
           safeBtn.innerHTML = '🛡️ Safety Center';
-          safeBtn.style.cssText = 'position:fixed; bottom:140px; right:20px; z-index:99998; background:#7f1d1d; color:#fca5a5; padding:12px 18px; border-radius:30px; font-weight:600; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.4); font-size:14px; font-family:sans-serif; display:flex; align-items:center; gap:8px; border:2px solid #ef4444; transition:all 0.2s;';
+          safeBtn.style.cssText = 'pointer-events:auto; position:relative; background:#7f1d1d; color:#fca5a5; padding:10px 16px; border-radius:30px; font-weight:600; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.4); font-size:13px; font-family:sans-serif; display:flex; align-items:center; gap:8px; border:2px solid #ef4444; transition:all 0.2s; width:fit-content;';
           safeBtn.onclick = () => toggleSafetyCenterModal();
-          document.body.appendChild(safeBtn);
+          const dockContainer = getOrCreateQuickActionsDock();
+          dockContainer.appendChild(safeBtn);
         }
 
         // Request browser notification permission for 500m proximity alerts
@@ -2193,9 +2146,10 @@
           const schedBtn = document.createElement('div');
           schedBtn.id = 'elite-scheduler-btn';
           schedBtn.innerHTML = '📅 Schedule Ride';
-          schedBtn.style.cssText = 'position:fixed; bottom:200px; right:20px; z-index:99998; background:#0369a1; color:#e0f2fe; padding:12px 18px; border-radius:30px; font-weight:600; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.4); font-size:14px; font-family:sans-serif; display:flex; align-items:center; gap:8px; border:2px solid #0ea5e9; transition:all 0.2s;';
+          schedBtn.style.cssText = 'pointer-events:auto; position:relative; background:#0369a1; color:#e0f2fe; padding:10px 16px; border-radius:30px; font-weight:600; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.4); font-size:13px; font-family:sans-serif; display:flex; align-items:center; gap:8px; border:2px solid #0ea5e9; transition:all 0.2s; width:fit-content;';
           schedBtn.onclick = () => toggleRideSchedulerModal();
-          document.body.appendChild(schedBtn);
+          const dockContainer = getOrCreateQuickActionsDock();
+          dockContainer.appendChild(schedBtn);
         }
       }
 
@@ -2363,18 +2317,19 @@
           const fbBtn = document.createElement('div');
           fbBtn.id = 'elite-feedback-btn';
           fbBtn.innerHTML = '⭐ Rate Driver';
-          fbBtn.style.cssText = 'position:fixed; bottom:260px; right:20px; z-index:99998; background:#b45309; color:#fef3c7; padding:10px 16px; border-radius:30px; font-weight:600; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.4); font-size:13px; font-family:sans-serif; display:flex; align-items:center; gap:6px; border:2px solid #f59e0b; transition:all 0.2s;';
+          fbBtn.style.cssText = 'pointer-events:auto; position:relative; background:#b45309; color:#fef3c7; padding:10px 16px; border-radius:30px; font-weight:600; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.4); font-size:13px; font-family:sans-serif; display:flex; align-items:center; gap:6px; border:2px solid #f59e0b; transition:all 0.2s; width:fit-content;';
           fbBtn.onclick = () => toggleFeedbackModal();
-          document.body.appendChild(fbBtn);
+          const dockContainer = getOrCreateQuickActionsDock();
+          dockContainer.appendChild(fbBtn);
         }
 
         if (!document.getElementById('elite-lang-toggle-widget')) {
           const langWidget = document.createElement('div');
           langWidget.id = 'elite-lang-toggle-widget';
-          langWidget.style.cssText = 'position:fixed; top:16px; right:20px; z-index:99999; background:#0f172a; border:1px solid #334155; border-radius:20px; padding:6px 12px; display:flex; align-items:center; gap:8px; font-family:sans-serif; font-size:12px; box-shadow:0 4px 12px rgba(0,0,0,0.5);';
+          langWidget.style.cssText = 'position:fixed; top:12px; right:16px; z-index:99990; background:#0f172a; border:1px solid #334155; border-radius:20px; padding:4px 10px; display:flex; align-items:center; gap:6px; font-family:sans-serif; font-size:12px; box-shadow:0 4px 12px rgba(0,0,0,0.5);';
           langWidget.innerHTML = `
             <span style="color:#94a3b8;">🌐 Lang:</span>
-            <select id="elite-lang-select" style="background:#1e293b; color:white; border:1px solid #475569; border-radius:8px; padding:4px 8px; font-size:11px; outline:none; cursor:pointer;">
+            <select id="elite-lang-select" style="background:#1e293b; color:white; border:1px solid #475569; border-radius:8px; padding:3px 6px; font-size:11px; outline:none; cursor:pointer;">
               <option value="en">English (EN)</option>
               <option value="patois">Patois (Kwéyòl)</option>
               <option value="es">Español (ES)</option>
