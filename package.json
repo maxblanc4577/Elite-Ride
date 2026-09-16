@@ -37,6 +37,7 @@
     "vite": "^6.2.3"
   },
   "devDependencies": {
+    "@netlify/vite-plugin": "^3.0.1",
     "@types/canvas-confetti": "^1.9.0"
   }
 }
