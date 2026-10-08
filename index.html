@@ -696,23 +696,26 @@
 
       function updateAdminEmail() {
         try {
-          const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
-          let node;
-          while (node = walker.nextNode()) {
-            if (node.nodeValue && node.nodeValue.includes('@') && !node.nodeValue.includes('info@elite-ride.org')) {
-              node.nodeValue = node.nodeValue.replace(/[\w.-]+@[\w.-]+\.\w+/g, 'info@elite-ride.org');
-            }
-          }
-          document.querySelectorAll('input, textarea').forEach(el => {
-            if (el.value && el.value.includes('@') && !el.value.includes('info@elite-ride.org')) {
-              el.value = 'info@elite-ride.org';
-            }
-            if (el.placeholder && el.placeholder.includes('@') && !el.placeholder.includes('info@elite-ride.org')) {
-              el.placeholder = el.placeholder.replace(/[\w.-]+@[\w.-]+\.\w+/g, 'info@elite-ride.org');
+          const isStandaloneLogin = window.location.pathname === '/admin-login' ||
+            window.location.hash === '#/admin-login' ||
+            Boolean(document.getElementById('standalone-admin-login-gateway'));
+          const publicWidgets = [
+            'elite-vehicle-widget',
+            'elite-estimation-widget',
+            'elite-quick-actions-dock',
+            'elite-lang-toggle-widget',
+            'elite-chat-btn'
+          ];
+          publicWidgets.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+              el.style.display = isStandaloneLogin ? 'none' : '';
             }
           });
         } catch (e) {}
       }
+      window.addEventListener('elite-route-change', updateAdminEmail);
+      window.addEventListener('popstate', updateAdminEmail);
 
       function injectAdminControls() {
         // Remove any floating button if it exists
@@ -1606,62 +1609,309 @@
         }
       }
 
+      const ELITE_HISTORY_TRIPS = [
+        {
+          id: "TX-882101",
+          route: "Roseau ➔ Melville Hall Airport",
+          pickup: "Roseau Ferry Terminal, Bay Street",
+          dropoff: "Douglas-Charles / Melville Hall Airport (DOM)",
+          amount: "EC$ 120.00",
+          baseFare: "EC$ 94.50",
+          surge: "EC$ 3.60",
+          tip: "EC$ 10.00",
+          tax: "EC$ 10.90",
+          serviceFee: "EC$ 1.00",
+          date: "Sept 12, 2026 • 02:15 PM",
+          driverName: "Captain Marcus Christian",
+          driverDisplay: "Marcus Brody (DRV-8821)",
+          driverId: "DRV-8821",
+          driverRefId: "drv-001",
+          vehicle: "Toyota RAV4 4x4 (HE 492)",
+          paymentText: "Completed & Paid via Stripe",
+          status: "completed"
+        },
+        {
+          id: "TX-441209",
+          route: "Canefield ➔ Portsmouth Beach",
+          pickup: "Canefield Cliff & Airport Junction",
+          dropoff: "Portsmouth Purple Turtle Beach, St. John",
+          amount: "EC$ 85.50",
+          baseFare: "EC$ 67.00",
+          surge: "EC$ 4.73",
+          tip: "EC$ 5.00",
+          tax: "EC$ 7.77",
+          serviceFee: "EC$ 1.00",
+          date: "Sept 10, 2026 • 11:30 AM",
+          driverName: "Elena Vance",
+          driverDisplay: "Elena Vance (DRV-4412)",
+          driverId: "DRV-4412",
+          driverRefId: "drv-002",
+          vehicle: "Nissan X-Trail 4WD (HF 118)",
+          paymentText: "Completed & Paid via Mobile Banking",
+          status: "completed"
+        },
+        {
+          id: "TX-901184",
+          route: "Trafalgar Falls ➔ Roseau Center",
+          pickup: "Trafalgar Falls Nature Reserve, St. George",
+          dropoff: "Roseau Bayfront Commercial Center",
+          amount: "EC$ 48.50",
+          baseFare: "EC$ 36.00",
+          surge: "EC$ 3.10",
+          tip: "EC$ 4.00",
+          tax: "EC$ 4.40",
+          serviceFee: "EC$ 1.00",
+          date: "Sept 08, 2026 • 04:45 PM",
+          driverName: "Damon Ross",
+          driverDisplay: "Damon Ross (DRV-9011)",
+          driverId: "DRV-9011",
+          driverRefId: "drv-003",
+          vehicle: "Toyota Corolla Axio Hybrid (HB 204)",
+          paymentText: "Completed & Paid via Stripe",
+          status: "completed"
+        }
+      ];
+
+      function getFavoriteDriversList() {
+        try {
+          return JSON.parse(localStorage.getItem("eliteride_favorite_drivers") || "[]");
+        } catch (e) {
+          return [];
+        }
+      }
+
+      function isDriverFavorited(driverId, driverName, driverRefId) {
+        const favs = getFavoriteDriversList();
+        return favs.includes(driverId) || favs.includes(driverName) || (driverRefId && favs.includes(driverRefId));
+      }
+
+      window.toggleFavoriteDriverFromHistory = function(driverId, driverName, driverRefId) {
+        let favs = getFavoriteDriversList();
+        const currentlyFav = isDriverFavorited(driverId, driverName, driverRefId);
+        if (currentlyFav) {
+          favs = favs.filter(x => x !== driverId && x !== driverName && x !== driverRefId);
+        } else {
+          if (driverId && !favs.includes(driverId)) favs.push(driverId);
+          if (driverName && !favs.includes(driverName)) favs.push(driverName);
+          if (driverRefId && !favs.includes(driverRefId)) favs.push(driverRefId);
+        }
+        try {
+          localStorage.setItem("eliteride_favorite_drivers", JSON.stringify(favs));
+          window.dispatchEvent(new CustomEvent("eliteride_favorites_updated", {
+            detail: { favorites: favs, driverId, driverName, added: !currentlyFav }
+          }));
+        } catch (e) {}
+
+        renderRideHistoryListItems();
+        showHistoryToast(currentlyFav
+          ? `Removed ${driverName} from Favorite Drivers`
+          : `⭐ Marked ${driverName} as Favorite for future booking preference!`
+        );
+      };
+
+      function showHistoryToast(msg) {
+        const toast = document.getElementById("elite-history-toast");
+        if (!toast) return;
+        toast.innerText = msg;
+        toast.style.display = "block";
+        clearTimeout(window._histToastTimer);
+        window._histToastTimer = setTimeout(() => {
+          if (toast) toast.style.display = "none";
+        }, 3200);
+      }
+
+      window.downloadTripReceiptPDF = function(tripOrId) {
+        let trip = null;
+        if (typeof tripOrId === "string") {
+          trip = ELITE_HISTORY_TRIPS.find(t => t.id === tripOrId) || ELITE_HISTORY_TRIPS[0];
+        } else if (tripOrId && typeof tripOrId === "object") {
+          trip = {
+            id: tripOrId.id || "TX-994821",
+            route: (tripOrId.pickup?.name || "Roseau") + " ➔ " + (tripOrId.dropoff?.name || "Destination"),
+            pickup: tripOrId.pickup?.name || "Roseau Ferry Terminal",
+            dropoff: tripOrId.dropoff?.name || "Melville Hall Airport",
+            amount: "EC$ " + (tripOrId.fare?.totalXCD ? tripOrId.fare.totalXCD.toFixed(2) : "120.00"),
+            baseFare: "EC$ " + (tripOrId.fare?.distanceFareXCD ? tripOrId.fare.distanceFareXCD.toFixed(2) : "94.50"),
+            surge: "EC$ " + (tripOrId.fare?.mountainSurchargeXCD ? tripOrId.fare.mountainSurchargeXCD.toFixed(2) : "5.40"),
+            tip: "EC$ " + (tripOrId.fare?.tipXCD ? tripOrId.fare.tipXCD.toFixed(2) : "10.00"),
+            tax: "EC$ " + (tripOrId.fare?.vatTaxXCD ? tripOrId.fare.vatTaxXCD.toFixed(2) : "10.10"),
+            date: tripOrId.createdAt ? new Date(tripOrId.createdAt).toLocaleString() : new Date().toLocaleString(),
+            driverDisplay: (tripOrId.driver?.name || "Marcus Brody") + " (" + (tripOrId.driver?.id || "DRV-8821") + ")",
+            vehicle: (tripOrId.driver?.vehicleModel || "Toyota RAV4 4x4") + " (" + (tripOrId.driver?.vehiclePlate || "HE 492") + ")",
+            paymentText: "Completed & Paid (" + (tripOrId.paymentMethod || "Card").toUpperCase() + ")"
+          };
+        } else {
+          trip = ELITE_HISTORY_TRIPS[0];
+        }
+
+        const runExport = () => {
+          try {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            doc.setFillColor(2, 44, 34);
+            doc.rect(0, 0, 210, 42, "F");
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(22);
+            doc.text("ELITE RIDE DOMINICA", 14, 24);
+
+            doc.setFontSize(10);
+            doc.setTextColor(167, 243, 208);
+            doc.text("Official Electronic Trip Receipt & Tax Invoice", 14, 33);
+
+            doc.setTextColor(30, 41, 59);
+            doc.setFontSize(11);
+            doc.text(`Receipt ID: ${trip.id}-ELITE`, 14, 54);
+            doc.text(`Trip Date & Time: ${trip.date}`, 14, 62);
+            doc.text(`Assigned Captain: ${trip.driverDisplay}`, 14, 70);
+            doc.text(`Vehicle: ${trip.vehicle} — Dominica Nature Transit`, 14, 78);
+
+            doc.setLineWidth(0.5);
+            doc.line(14, 85, 196, 85);
+
+            doc.setFont(undefined, "bold");
+            doc.text("Completed Trip Route Details:", 14, 95);
+            doc.setFont(undefined, "normal");
+            doc.text(`Route Summary: ${trip.route}`, 14, 103);
+            doc.text(`Pickup Location: ${trip.pickup}`, 14, 111);
+            doc.text(`Drop-off Destination: ${trip.dropoff}`, 14, 119);
+
+            doc.line(14, 127, 196, 127);
+
+            doc.setFont(undefined, "bold");
+            doc.text("Fare & Payment Breakdown (XCD):", 14, 137);
+            doc.setFont(undefined, "normal");
+            doc.text(`Base Fare & Distance: ${trip.baseFare}`, 14, 145);
+            doc.text(`4x4 Mountain & Terrain Adjustment: ${trip.surge}`, 14, 153);
+            doc.text(`Passenger Digital Tip: ${trip.tip}`, 14, 161);
+            doc.text(`Dominica VAT & Eco Levy (Included): ${trip.tax}`, 14, 169);
+
+            doc.setLineWidth(0.8);
+            doc.line(14, 177, 196, 177);
+
+            doc.setFont(undefined, "bold");
+            doc.setFontSize(14);
+            doc.setTextColor(5, 150, 105);
+            doc.text(`Total Paid: ${trip.amount} (${trip.paymentText})`, 14, 189);
+
+            doc.setFontSize(10);
+            doc.setFont(undefined, "italic");
+            doc.setTextColor(100, 116, 139);
+            doc.text("Thank you for riding with Elite Ride Dominica — Nature Island's Premier Transit.", 14, 212);
+
+            const cleanId = String(trip.id).replace(/[^a-zA-Z0-9_-]/g, "");
+            doc.save(`Elite_Ride_Receipt_${cleanId}.pdf`);
+            showHistoryToast(`✓ Official PDF Receipt downloaded for ${trip.route} (${trip.id})!`);
+          } catch (e) {
+            console.error("PDF Receipt error:", e);
+          }
+        };
+
+        if (typeof window.jspdf === "undefined") {
+          const script = document.createElement("script");
+          script.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+          script.onload = () => runExport();
+          document.head.appendChild(script);
+        } else {
+          runExport();
+        }
+      };
+
+      function renderRideHistoryListItems() {
+        const listContainer = document.getElementById("elite-history-entries-container");
+        if (!listContainer) return;
+
+        const favs = getFavoriteDriversList();
+        const favSummaryEl = document.getElementById("elite-history-fav-summary");
+        if (favSummaryEl) {
+          const matchedDrivers = ELITE_HISTORY_TRIPS.filter(t => isDriverFavorited(t.driverId, t.driverName, t.driverRefId));
+          if (matchedDrivers.length > 0) {
+            favSummaryEl.style.display = "flex";
+            favSummaryEl.innerHTML = `<span>⭐ <b>Preferred Drivers for Future Bookings:</b> ${matchedDrivers.map(d => d.driverName).join(", ")}</span>`;
+          } else {
+            favSummaryEl.style.display = "none";
+          }
+        }
+
+        listContainer.innerHTML = ELITE_HISTORY_TRIPS.map(trip => {
+          const isFav = isDriverFavorited(trip.driverId, trip.driverName, trip.driverRefId);
+          return `
+            <div class="ride-history-entry-card" data-trip-id="${trip.id}" style="background:#1e293b; border:1px solid ${isFav ? "#f59e0b80" : "#334155"}; border-radius:12px; padding:14px; display:flex; flex-direction:column; gap:8px; transition:all 0.2s;">
+              <div style="display:flex; justify-content:space-between; align-items:center; font-weight:bold; font-size:14px;">
+                <span>Route: ${trip.route}</span>
+                <span style="color:#34d399; font-weight:800;">${trip.amount}</span>
+              </div>
+              <div style="font-size:12px; color:#94a3b8; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+                <span>Date: ${trip.date}</span>
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <span style="color:#38bdf8; font-weight:600;">Driver: ${trip.driverDisplay}</span>
+                  <button
+                    type="button"
+                    class="favorite-driver-star-btn"
+                    aria-label="Mark ${trip.driverName} as Favorite Driver"
+                    title="${isFav ? "Favorited for future booking preference (Click to remove)" : "Mark driver as Favorite for future booking preference"}"
+                    onclick="window.toggleFavoriteDriverFromHistory('${trip.driverId}', '${trip.driverName}', '${trip.driverRefId}')"
+                    style="background:${isFav ? "rgba(245, 158, 11, 0.2)" : "#0f172a"}; border:1px solid ${isFav ? "#f59e0b" : "#475569"}; color:${isFav ? "#fbbf24" : "#94a3b8"}; border-radius:8px; padding:3px 8px; font-size:12px; font-weight:bold; cursor:pointer; display:inline-flex; align-items:center; gap:4px; transition:all 0.2s;"
+                  >
+                    <span style="font-size:14px; line-height:1;">${isFav ? "★" : "☆"}</span>
+                    <span style="font-size:11px;">${isFav ? "Favorite" : "Favorite"}</span>
+                  </button>
+                </div>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-top:2px; padding-top:6px; border-top:1px solid #33415580;">
+                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                  <span style="font-size:11px; color:#34d399; background:#05966920; padding:3px 8px; border-radius:6px; border:1px solid #05966940;">${trip.paymentText}</span>
+                  ${isFav ? `<span style="font-size:10px; color:#fbbf24; background:rgba(245,158,11,0.15); border:1px solid rgba(245,158,11,0.4); padding:2px 7px; border-radius:6px; font-weight:bold;">★ Preferred Captain</span>` : ""}
+                </div>
+                <button
+                  type="button"
+                  class="download-receipt-btn"
+                  onclick="window.downloadTripReceiptPDF('${trip.id}')"
+                  style="background:#0284c7; hover:background:#0369a1; color:white; border:1px solid #38bdf860; padding:6px 12px; border-radius:8px; font-size:11px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px; box-shadow:0 2px 8px rgba(2,132,199,0.35); transition:all 0.2s;"
+                >
+                  <span>📥</span>
+                  <span>Download Receipt</span>
+                </button>
+              </div>
+            </div>
+          `;
+        }).join("");
+      }
+
       function toggleRideHistoryModal() {
         let modal = document.getElementById('elite-history-modal');
         if (modal) {
-          modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
+          const nextState = modal.style.display === 'flex' ? 'none' : 'flex';
+          modal.style.display = nextState;
+          if (nextState === 'flex') renderRideHistoryListItems();
           return;
         }
 
         modal = document.createElement('div');
         modal.id = 'elite-history-modal';
-        modal.style.cssText = 'position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:500px; max-width:90vw; max-height:80vh; background:#1e293b; color:#f8fafc; border-radius:16px; z-index:100001; box-shadow:0 25px 50px -12px rgba(0,0,0,0.7); display:flex; flex-direction:column; overflow:hidden; font-family:sans-serif; border:1px solid #334155;';
+        modal.style.cssText = 'position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:540px; max-width:94vw; max-height:85vh; background:#1e293b; color:#f8fafc; border-radius:16px; z-index:100001; box-shadow:0 25px 50px -12px rgba(0,0,0,0.75); display:flex; flex-direction:column; overflow:hidden; font-family:sans-serif; border:1px solid #334155;';
 
         modal.innerHTML = `
           <div style="background:#0f172a; padding:16px 20px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #334155;">
-            <div style="font-weight:bold; font-size:16px; color:#38bdf8; display:flex; align-items:center; gap:8px;">📜 Passenger Ride & Transaction History</div>
-            <button id="hist-close-btn" style="background:transparent; border:none; color:#94a3b8; font-size:22px; cursor:pointer;">&times;</button>
+            <div>
+              <div style="font-weight:bold; font-size:16px; color:#38bdf8; display:flex; align-items:center; gap:8px;">📜 Passenger Ride & Transaction History</div>
+              <div style="font-size:11px; color:#94a3b8; margin-top:2px;">Star ★ your favorite drivers for future booking preference or download trip PDF receipts</div>
+            </div>
+            <button id="hist-close-btn" style="background:transparent; border:none; color:#94a3b8; font-size:22px; cursor:pointer; line-height:1;">&times;</button>
           </div>
-          <div style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px; background:#0f172a80;">
-            <div style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:14px; display:flex; flex-direction:column; gap:6px;">
-              <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:14px;">
-                <span>Route: Roseau ➔ Melville Hall Airport</span>
-                <span style="color:#34d399;">EC$ 120.00</span>
-              </div>
-              <div style="font-size:12px; color:#94a3b8; display:flex; justify-content:space-between;">
-                <span>Date: Sept 12, 2026 • 02:15 PM</span>
-                <span style="color:#38bdf8;">Driver: Marcus Brody (DRV-8821)</span>
-              </div>
-              <div style="font-size:11px; color:#34d399; background:#05966920; padding:2px 8px; border-radius:6px; width:fit-content;">Completed & Paid via Stripe</div>
-            </div>
-
-            <div style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:14px; display:flex; flex-direction:column; gap:6px;">
-              <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:14px;">
-                <span>Route: Canefield ➔ Portsmouth Beach</span>
-                <span style="color:#34d399;">EC$ 85.50</span>
-              </div>
-              <div style="font-size:12px; color:#94a3b8; display:flex; justify-content:space-between;">
-                <span>Date: Sept 10, 2026 • 11:30 AM</span>
-                <span style="color:#38bdf8;">Driver: Elena Vance (DRV-4412)</span>
-              </div>
-              <div style="font-size:11px; color:#34d399; background:#05966920; padding:2px 8px; border-radius:6px; width:fit-content;">Completed & Paid via Mobile Banking</div>
-            </div>
-
-            <div style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:14px; display:flex; flex-direction:column; gap:6px;">
-              <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:14px;">
-                <span>Route: Trafalgar Falls ➔ Roseau Center</span>
-                <span style="color:#34d399;">EC$ 48.50</span>
-              </div>
-              <div style="font-size:12px; color:#94a3b8; display:flex; justify-content:space-between;">
-                <span>Date: Sept 08, 2026 • 04:45 PM</span>
-                <span style="color:#38bdf8;">Driver: Damon Ross (DRV-9011)</span>
-              </div>
-              <div style="font-size:11px; color:#34d399; background:#05966920; padding:2px 8px; border-radius:6px; width:fit-content;">Completed & Paid via Stripe</div>
-            </div>
+          <div id="elite-history-fav-summary" style="display:none; background:#451a0390; border-bottom:1px solid #f59e0b50; color:#fde68a; padding:8px 20px; font-size:11px; align-items:center; justify-content:space-between;"></div>
+          <div id="elite-history-toast" style="display:none; background:#065f46; border-bottom:1px solid #10b981; color:#d1fae5; padding:8px 20px; font-size:12px; font-weight:bold; text-align:center;"></div>
+          <div id="elite-history-entries-container" style="padding:18px 20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px; background:#0f172a80;">
           </div>
         `;
 
         document.body.appendChild(modal);
+        renderRideHistoryListItems();
+
+        window.addEventListener("eliteride_favorites_updated", () => {
+          renderRideHistoryListItems();
+        });
+
         document.getElementById('hist-close-btn').onclick = () => {
           modal.style.display = 'none';
         };
