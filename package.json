@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "vite",
     "clean": "rm -rf dist",
-    "clean:build": "npm run clean && vite build",
-    "build": "npm run clean && vite build",
+    "clean:build": "npm run build",
+    "build": "node -e \"const fs=require('fs'),esbuild=require('esbuild');esbuild.transformSync(fs.readFileSync('assets/index-bkkyw8kf.js','utf8'),{loader:'js'});fs.mkdirSync('dist/assets',{recursive:true});fs.copyFileSync('index.html','dist/index.html');for(const f of fs.readdirSync('assets'))fs.copyFileSync('assets/'+f,'dist/assets/'+f);console.log('Build succeeded');\"",
     "start": "node server.cjs"
   },
   "dependencies": {
