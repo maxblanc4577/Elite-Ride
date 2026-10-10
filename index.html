@@ -173,12 +173,19 @@
       div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) {
         height: 226px;
       }
+      #ride-now-action-btn,
+      [data-testid="ride-now-btn"] {
+        pointer-events: auto !important;
+        cursor: pointer !important;
+        position: relative !important;
+        z-index: 30 !important;
+      }
     </style>
   </head>
   <body class="bg-slate-950 text-slate-100 antialiased selection:bg-emerald-500 selection:text-white overscroll-none select-none">
     <div id="root"></div>
     <script>
-      // Preserve persistent user data (Recent Destinations, Ride History, Ratings, Driver Online Status)
+      // Preserve persistent user data (Recent Destinations, Ride History, Ratings, Favorite Routes, Driver Online Status)
       const ELITE_PROTECTED_STORAGE_KEYS = [
         'eliteride_recent_destinations',
         'recentDestinations',
@@ -186,6 +193,7 @@
         'eliteride_ride_history_v1',
         'elite_driver_ratings',
         'eliteride_favorite_drivers',
+        'eliteride_favorite_routes_v1',
         'eliteride_user_profile',
         'eliteride_rider_photo',
         'eliteride_drivers_online',
@@ -246,6 +254,10 @@
         window.dispatchEvent(new CustomEvent('eliteride_driver_status_changed', {
           detail: { isOnline: onlineBool, status: onlineBool ? 'online' : 'offline' }
         }));
+        if (onlineBool) {
+          const noDrvModal = document.getElementById('elite-no-drivers-online-modal');
+          if (noDrvModal) noDrvModal.style.display = 'none';
+        }
         if (typeof window.syncEstimationDriverStatusUI === 'function') {
           window.syncEstimationDriverStatusUI();
         }
@@ -1007,6 +1019,7 @@
               key === 'eliteride_ride_history_v1' ||
               key === 'elite_driver_ratings' ||
               key === 'eliteride_favorite_drivers' ||
+              key === 'eliteride_favorite_routes_v1' ||
               key === 'eliteride_user_profile' ||
               key === 'eliteride_rider_photo' ||
               key === 'eliteride_drivers_online' ||
@@ -3511,9 +3524,409 @@
         }
       };
 
+      const ELITE_FAVORITE_ROUTES_KEY = "eliteride_favorite_routes_v1";
+      const DEFAULT_PINNED_FAVORITE_ROUTES = [
+        {
+          id: "fav-route-1",
+          title: "Airport Express Transfer",
+          type: "route",
+          pinned: true,
+          tag: "📌 Pinned Airport Route",
+          pickupId: "roseau-capital",
+          pickupName: "Roseau Ferry Terminal",
+          pickupDistrict: "St. George",
+          dropoffId: "douglas-charles-airport",
+          dropoffName: "Douglas-Charles Airport (DOM)",
+          dropoffDistrict: "St. Andrew",
+          distanceKm: 47.5,
+          distanceMiles: 29.5,
+          fareXCD: 120.00,
+          fareUSD: 44.44,
+          vehicleCategory: "suv_4wd",
+          preferredDriver: "Captain Marcus Christian"
+        },
+        {
+          id: "fav-route-2",
+          title: "North Coast & Cabrits Beach Run",
+          type: "route",
+          pinned: true,
+          tag: "📌 Pinned Coastal Route",
+          pickupId: "canefield-airport",
+          pickupName: "Canefield Cliff Junction",
+          pickupDistrict: "St. Paul",
+          dropoffId: "portsmouth-town",
+          dropoffName: "Portsmouth & Purple Turtle Beach",
+          dropoffDistrict: "St. John",
+          distanceKm: 29.3,
+          distanceMiles: 18.2,
+          fareXCD: 85.50,
+          fareUSD: 31.67,
+          vehicleCategory: "standard",
+          preferredDriver: "Shermaine Bellevue (Elena Vance)"
+        },
+        {
+          id: "fav-dest-1",
+          title: "Trafalgar Falls Twin Waterfalls",
+          type: "destination",
+          pinned: true,
+          tag: "📍 Pinned Destination",
+          pickupId: "roseau-capital",
+          pickupName: "Roseau Bayfront Center",
+          pickupDistrict: "St. George",
+          dropoffId: "trafalgar",
+          dropoffName: "Trafalgar Falls Nature Reserve",
+          dropoffDistrict: "St. George",
+          distanceKm: 13.5,
+          distanceMiles: 8.4,
+          fareXCD: 48.50,
+          fareUSD: 17.96,
+          vehicleCategory: "suv_4wd",
+          preferredDriver: "Captain Damon Ross"
+        },
+        {
+          id: "fav-dest-2",
+          title: "Emerald Pool Rainforest Reserve",
+          type: "destination",
+          pinned: true,
+          tag: "📍 Pinned Destination",
+          pickupId: "roseau-capital",
+          pickupName: "Roseau Ferry Terminal",
+          pickupDistrict: "St. George",
+          dropoffId: "emerald-pool",
+          dropoffName: "Emerald Pool Morne Trois Pitons",
+          dropoffDistrict: "St. David",
+          distanceKm: 22.7,
+          distanceMiles: 14.1,
+          fareXCD: 65.00,
+          fareUSD: 24.07,
+          vehicleCategory: "standard",
+          preferredDriver: "Shermaine Bellevue (Elena Vance)"
+        }
+      ];
+      window.DEFAULT_PINNED_FAVORITE_ROUTES = DEFAULT_PINNED_FAVORITE_ROUTES;
+
+      window.getPinnedFavoriteRoutes = function() {
+        try {
+          const raw = localStorage.getItem(ELITE_FAVORITE_ROUTES_KEY);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+          }
+          localStorage.setItem(ELITE_FAVORITE_ROUTES_KEY, JSON.stringify(DEFAULT_PINNED_FAVORITE_ROUTES));
+          return [...DEFAULT_PINNED_FAVORITE_ROUTES];
+        } catch (e) {
+          return [...DEFAULT_PINNED_FAVORITE_ROUTES];
+        }
+      };
+
+      window.savePinnedFavoriteRoutes = function(list) {
+        const clean = Array.isArray(list) ? list : DEFAULT_PINNED_FAVORITE_ROUTES;
+        try {
+          localStorage.setItem(ELITE_FAVORITE_ROUTES_KEY, JSON.stringify(clean));
+          window.dispatchEvent(new CustomEvent("eliteride_favorite_routes_updated", { detail: { favorites: clean } }));
+        } catch (e) {}
+        return clean;
+      };
+
+      window.isRoutePinnedFavorite = function(pickupNameOrId, dropoffNameOrId) {
+        const favs = window.getPinnedFavoriteRoutes();
+        const pStr = String(pickupNameOrId || "").toLowerCase();
+        const dStr = String(dropoffNameOrId || "").toLowerCase();
+        return favs.some(f => {
+          const fp = String(f.pickupId || f.pickupName || "").toLowerCase();
+          const fd = String(f.dropoffId || f.dropoffName || "").toLowerCase();
+          const fn = String(f.pickupName || "").toLowerCase();
+          const fdn = String(f.dropoffName || "").toLowerCase();
+          return (
+            ((fp && pStr.includes(fp)) || (fn && pStr.includes(fn.split(" ")[0]))) &&
+            ((fd && dStr.includes(fd)) || (fdn && dStr.includes(fdn.split(" ")[0])))
+          );
+        });
+      };
+
+      window.togglePinFavoriteRoute = function(routeItem) {
+        if (!routeItem) return window.getPinnedFavoriteRoutes();
+        const current = window.getPinnedFavoriteRoutes();
+        const pName = routeItem.pickupName || routeItem.pickup?.name || routeItem.pickup || "Roseau Ferry Terminal";
+        const dName = routeItem.dropoffName || routeItem.dropoff?.name || routeItem.dropoff || "Douglas-Charles Airport (DOM)";
+        const pId = routeItem.pickupId || routeItem.pickupLocId || routeItem.pickup?.id || "roseau-capital";
+        const dId = routeItem.dropoffId || routeItem.dropoffLocId || routeItem.dropoff?.id || "douglas-charles-airport";
+
+        const existingIdx = current.findIndex(f =>
+          f.id === routeItem.id ||
+          (String(f.pickupName).toLowerCase() === String(pName).toLowerCase() &&
+           String(f.dropoffName).toLowerCase() === String(dName).toLowerCase()) ||
+          (f.pickupId === pId && f.dropoffId === dId && !routeItem.allowDuplicate)
+        );
+
+        let updated;
+        let actionAdded = true;
+        if (existingIdx !== -1) {
+          updated = current.filter((_, idx) => idx !== existingIdx);
+          actionAdded = false;
+        } else {
+          const fareXCD = Number(routeItem.fareXCD ?? routeItem.fare?.totalXCD ?? String(routeItem.amount || "85").replace(/[^0-9.]/g, "")) || 85;
+          const fareUSD = Number(routeItem.fareUSD ?? routeItem.fare?.totalUSD ?? (fareXCD / 2.7).toFixed(2)) || 31.48;
+          const distKm = Number(routeItem.distanceKm ?? routeItem.fare?.distanceKm ?? 24.5) || 24.5;
+          const distMi = Number(routeItem.distanceMiles ?? routeItem.fare?.distanceMiles ?? (distKm * 0.621371).toFixed(1)) || 15.2;
+          const newFav = {
+            id: routeItem.id && String(routeItem.id).startsWith("fav-") ? routeItem.id : "fav-" + Date.now(),
+            title: routeItem.title || `${String(pName).split(",")[0]} ➔ ${String(dName).split(",")[0]}`,
+            type: routeItem.type || "route",
+            pinned: true,
+            tag: routeItem.tag || (routeItem.type === "destination" ? "📍 Pinned Destination" : "📌 Pinned Favorite Route"),
+            pickupId: pId,
+            pickupName: pName,
+            pickupDistrict: routeItem.pickupDistrict || routeItem.pickup?.district || "Dominica",
+            dropoffId: dId,
+            dropoffName: dName,
+            dropoffDistrict: routeItem.dropoffDistrict || routeItem.dropoff?.district || "Dominica",
+            distanceKm: distKm,
+            distanceMiles: distMi,
+            fareXCD: fareXCD,
+            fareUSD: fareUSD,
+            vehicleCategory: routeItem.vehicleCategory || "suv_4wd",
+            preferredDriver: routeItem.preferredDriver || routeItem.driver?.name || routeItem.driverName || "Captain Marcus Christian"
+          };
+          updated = [newFav, ...current];
+        }
+        window.savePinnedFavoriteRoutes(updated);
+        if (typeof showHistoryToast === "function") {
+          showHistoryToast(
+            actionAdded
+              ? `📌 Pinned "${pName} ➔ ${dName}" to Favorites!`
+              : `Removed "${pName} ➔ ${dName}" from Favorites.`
+          );
+        }
+        return updated;
+      };
+
+      window.togglePinFavoriteFromTrip = function(tripId) {
+        const trip = ELITE_HISTORY_TRIPS.find(t => t.id === tripId) || ELITE_HISTORY_TRIPS[0];
+        if (!trip) return;
+        window.togglePinFavoriteRoute({
+          title: trip.route,
+          type: "route",
+          tag: "📌 Pinned from History",
+          pickupId: trip.pickupLocId,
+          pickupName: trip.pickup,
+          dropoffId: trip.dropoffLocId,
+          dropoffName: trip.dropoff,
+          distanceKm: trip.distanceKm,
+          distanceMiles: trip.distanceMiles,
+          amount: trip.amount,
+          preferredDriver: trip.driverName
+        });
+        renderRideHistoryListItems();
+        renderRideHistoryFavoritesItems();
+      };
+
+      window.rebookFavoriteRoute = function(favOrId) {
+        const favs = window.getPinnedFavoriteRoutes();
+        const fav = typeof favOrId === "object" && favOrId !== null
+          ? favOrId
+          : favs.find(f => f.id === favOrId) || favs[0] || DEFAULT_PINNED_FAVORITE_ROUTES[0];
+        if (!fav) return;
+
+        const histModal = document.getElementById("elite-history-modal");
+        if (histModal) histModal.style.display = "none";
+
+        window.dispatchEvent(new CustomEvent("eliteride_rebook_trip", {
+          detail: {
+            favoriteId: fav.id,
+            pickupId: fav.pickupId,
+            dropoffId: fav.dropoffId,
+            pickupName: fav.pickupName,
+            dropoffName: fav.dropoffName,
+            pickup: { id: fav.pickupId, name: fav.pickupName, district: fav.pickupDistrict || "Dominica" },
+            dropoff: { id: fav.dropoffId, name: fav.dropoffName, district: fav.dropoffDistrict || "Dominica" }
+          }
+        }));
+
+        let banner = document.getElementById("elite-rebook-autofill-banner");
+        if (!banner) {
+          banner = document.createElement("div");
+          banner.id = "elite-rebook-autofill-banner";
+          banner.setAttribute("data-testid", "rebook-autofill-banner");
+          banner.style.cssText = "position:fixed; top:74px; left:50%; transform:translateX(-50%); z-index:100009; background:linear-gradient(90deg, #065f46, #0f172a); border:2px solid #10b981; color:#ecfdf5; padding:12px 18px; border-radius:14px; font-family:sans-serif; font-size:12px; font-weight:700; box-shadow:0 15px 35px rgba(0,0,0,0.7); display:flex; align-items:center; gap:10px; max-width:92vw;";
+          document.body.appendChild(banner);
+        }
+        banner.innerHTML = `
+          <span style="font-size:18px;">📌</span>
+          <div>
+            <div style="font-weight:900; color:#34d399; font-size:13px;">Favorite Route Rebooked — Ready to Ride!</div>
+            <div style="font-size:11px; color:#d1fae5; margin-top:2px;"><b>${fav.title}:</b> ${fav.pickupName} ➔ ${fav.dropoffName}</div>
+          </div>
+          <button type="button" onclick="this.parentElement.style.display='none'" style="background:#022c22; color:#6ee7b7; border:1px solid #10b98160; border-radius:8px; padding:4px 8px; cursor:pointer; font-size:11px; font-weight:800;">OK</button>
+        `;
+        banner.style.display = "flex";
+        clearTimeout(window._rebookBannerTimer);
+        window._rebookBannerTimer = setTimeout(() => {
+          if (banner) banner.style.display = "none";
+        }, 5500);
+      };
+
+      function renderRideHistoryFavoritesItems() {
+        const favs = window.getPinnedFavoriteRoutes();
+        const countBadge = document.getElementById("hist-favorites-count-badge");
+        if (countBadge) countBadge.innerText = favs.length;
+
+        const inlineSection = document.getElementById("elite-history-inline-favorites-section");
+        if (inlineSection) {
+          inlineSection.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+              <div style="display:flex; align-items:center; gap:6px;">
+                <span style="font-size:14px;">📌</span>
+                <span style="font-size:12px; font-weight:900; color:#fde68a; text-transform:uppercase; letter-spacing:0.4px;">Favorites — Pinned Routes & Destinations (${favs.length})</span>
+              </div>
+              <button
+                type="button"
+                onclick="window.switchRideHistoryModalTab('favorites')"
+                style="background:#1e293b; color:#38bdf8; border:1px solid #38bdf860; border-radius:8px; padding:3px 9px; font-size:11px; font-weight:800; cursor:pointer;"
+              >
+                Manage All Favorites ➔
+              </button>
+            </div>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:8px;">
+              ${favs.slice(0, 4).map(fav => `
+                <div class="favorite-route-quick-card" data-testid="favorite-route-card" data-fav-id="${fav.id}" style="background:#0f172a; border:1px solid #10b98150; border-radius:10px; padding:10px 12px; display:flex; flex-direction:column; gap:6px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
+                    <span style="font-size:10px; font-weight:800; color:#34d399; background:#022c22; border:1px solid #10b98150; padding:2px 7px; border-radius:6px;">${fav.tag || "📌 Pinned Favorite"}</span>
+                    <span style="font-size:12px; font-weight:900; color:#f8fafc; font-family:monospace;">EC$ ${Number(fav.fareXCD || 85).toFixed(2)}</span>
+                  </div>
+                  <div style="font-size:12px; font-weight:800; color:white;">${fav.title}</div>
+                  <div style="font-size:11px; color:#cbd5e1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">📍 ${fav.pickupName} ➔ 🏁 ${fav.dropoffName}</div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; gap:6px; margin-top:2px;">
+                    <span style="font-size:10px; color:#94a3b8;">${fav.distanceKm} km (${fav.distanceMiles} mi)</span>
+                    <button
+                      type="button"
+                      class="rebook-favorite-btn"
+                      data-testid="rebook-favorite-btn"
+                      onclick="window.rebookFavoriteRoute('${fav.id}')"
+                      style="background:#059669; color:white; border:1px solid #34d39990; padding:4px 10px; border-radius:7px; font-size:11px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:4px;"
+                    >
+                      <span>🔄</span>
+                      <span>Quick Rebook</span>
+                    </button>
+                  </div>
+                </div>
+              `).join("")}
+            </div>
+          `;
+        }
+
+        const favTabContainer = document.getElementById("elite-history-favorites-container");
+        if (!favTabContainer) return;
+
+        favTabContainer.innerHTML = `
+          <div style="background:linear-gradient(90deg, #064e3b80, #0f172a); border:1px solid #10b98160; border-radius:12px; padding:12px 14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+            <div>
+              <div style="font-size:13px; font-weight:900; color:#34d399;">📌 Pinned Favorite Routes & Island Destinations</div>
+              <div style="font-size:11px; color:#cbd5e1; margin-top:2px;">Instantly rebook your most frequent Dominica transfers, airport runs, and nature excursions with one tap.</div>
+            </div>
+            <span style="background:#022c22; color:#6ee7b7; border:1px solid #10b98160; padding:4px 10px; border-radius:8px; font-size:11px; font-weight:800;">${favs.length} Pinned Favorites</span>
+          </div>
+
+          <!-- Quick Pin New Favorite Route / Destination Form -->
+          <form id="hist-add-favorite-form" style="background:#1e293b; border:1px solid #475569; border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:8px;">
+            <div style="font-size:12px; font-weight:800; color:#fde68a;">➕ Pin a New Favorite Route or Destination</div>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(145px, 1fr)); gap:8px;">
+              <input type="text" id="hist-fav-title" placeholder="Label (e.g. Morning Work Commute)" style="background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:7px 10px; font-size:11px; outline:none;" />
+              <select id="hist-fav-pickup" style="background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:7px 10px; font-size:11px; outline:none;">
+                <option value="Roseau Ferry Terminal">Pickup: Roseau Ferry Terminal</option>
+                <option value="Canefield Cliff Junction">Pickup: Canefield Cliff Junction</option>
+                <option value="Douglas-Charles Airport (DOM)">Pickup: Melville Hall Airport (DOM)</option>
+                <option value="Portsmouth Center">Pickup: Portsmouth Center</option>
+                <option value="Mero Black Sand Beach">Pickup: Mero Beach</option>
+              </select>
+              <select id="hist-fav-dropoff" style="background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:7px 10px; font-size:11px; outline:none;">
+                <option value="Douglas-Charles Airport (DOM)">Drop-off: Melville Hall Airport (DOM)</option>
+                <option value="Portsmouth & Purple Turtle Beach">Drop-off: Portsmouth Beach</option>
+                <option value="Trafalgar Falls Nature Reserve">Drop-off: Trafalgar Falls</option>
+                <option value="Emerald Pool Morne Trois Pitons">Drop-off: Emerald Pool</option>
+                <option value="Cabrits National Park">Drop-off: Cabrits National Park</option>
+                <option value="Soufriere Sulphur Springs">Drop-off: Soufriere Bay</option>
+              </select>
+              <button type="submit" style="background:#10b981; color:#022c22; border:none; border-radius:8px; padding:7px 12px; font-size:11px; font-weight:900; cursor:pointer;">📌 Pin to Favorites</button>
+            </div>
+          </form>
+
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            ${favs.map(fav => `
+              <div class="favorite-route-entry-card" data-testid="favorite-route-item" data-fav-id="${fav.id}" style="background:#1e293b; border:1px solid #10b98160; border-radius:12px; padding:14px; display:flex; flex-direction:column; gap:8px;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px; flex-wrap:wrap;">
+                  <div>
+                    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                      <span style="font-size:10px; font-weight:800; color:#34d399; background:#022c22; border:1px solid #10b98150; padding:2px 8px; border-radius:6px;">${fav.tag || "📌 Pinned Favorite"}</span>
+                      <span style="font-weight:900; font-size:14px; color:white;">${fav.title}</span>
+                    </div>
+                    <div style="font-size:12px; color:#cbd5e1; margin-top:4px;">
+                      <b style="color:#34d399;">Pickup:</b> ${fav.pickupName} &nbsp;➔&nbsp; <b style="color:#f87171;">Drop-off:</b> ${fav.dropoffName}
+                    </div>
+                  </div>
+                  <div style="text-align:right;">
+                    <div style="font-size:14px; font-weight:900; color:#34d399; font-family:monospace;">EC$ ${Number(fav.fareXCD || 85).toFixed(2)}</div>
+                    <div style="font-size:10px; color:#94a3b8;">${fav.distanceKm} km (${fav.distanceMiles} mi)</div>
+                  </div>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; padding-top:6px; border-top:1px solid #33415580;">
+                  <span style="font-size:11px; color:#38bdf8;">👤 Preferred Captain: <b>${fav.preferredDriver || "Captain Marcus Christian"}</b></span>
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    <button
+                      type="button"
+                      onclick="window.togglePinFavoriteRoute({ id: '${fav.id}', pickupName: '${fav.pickupName.replace(/'/g, "\\'")}', dropoffName: '${fav.dropoffName.replace(/'/g, "\\'")}' }); renderRideHistoryFavoritesItems(); renderRideHistoryListItems();"
+                      style="background:#0f172a; color:#fca5a5; border:1px solid #ef444460; padding:5px 10px; border-radius:8px; font-size:11px; font-weight:700; cursor:pointer;"
+                    >
+                      Unpin
+                    </button>
+                    <button
+                      type="button"
+                      class="rebook-favorite-btn"
+                      data-testid="rebook-favorite-btn"
+                      onclick="window.rebookFavoriteRoute('${fav.id}')"
+                      style="background:#059669; color:white; border:1px solid #34d39990; padding:6px 12px; border-radius:8px; font-size:11px; font-weight:900; cursor:pointer; display:inline-flex; align-items:center; gap:5px; box-shadow:0 2px 8px rgba(5,150,105,0.35);"
+                    >
+                      <span>🔄</span>
+                      <span>Rebook This Favorite</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            `).join("")}
+          </div>
+        `;
+
+        const addForm = favTabContainer.querySelector("#hist-add-favorite-form");
+        if (addForm) {
+          addForm.onsubmit = (e) => {
+            e.preventDefault();
+            const titleVal = favTabContainer.querySelector("#hist-fav-title").value.trim();
+            const pkVal = favTabContainer.querySelector("#hist-fav-pickup").value;
+            const dpVal = favTabContainer.querySelector("#hist-fav-dropoff").value;
+            window.togglePinFavoriteRoute({
+              id: "fav-custom-" + Date.now(),
+              title: titleVal || `${pkVal.split(" ")[0]} ➔ ${dpVal.split(" ")[0]}`,
+              type: "route",
+              tag: "📌 Pinned Custom Route",
+              pickupName: pkVal,
+              dropoffName: dpVal,
+              fareXCD: 75.00,
+              distanceKm: 21.0,
+              distanceMiles: 13.0,
+              allowDuplicate: true
+            });
+            favTabContainer.querySelector("#hist-fav-title").value = "";
+            renderRideHistoryFavoritesItems();
+            renderRideHistoryListItems();
+          };
+        }
+      }
+
       function renderRideHistoryListItems() {
         const listContainer = document.getElementById("elite-history-entries-container");
         if (!listContainer) return;
+
+        renderRideHistoryFavoritesItems();
 
         const favs = getFavoriteDriversList();
         const favSummaryEl = document.getElementById("elite-history-fav-summary");
@@ -3529,6 +3942,7 @@
 
         listContainer.innerHTML = ELITE_HISTORY_TRIPS.map(trip => {
           const isFav = isDriverFavorited(trip.driverId, trip.driverName, trip.driverRefId);
+          const isRoutePinned = window.isRoutePinnedFavorite(trip.pickup, trip.dropoff);
           return `
             <div class="ride-history-entry-card" data-trip-id="${trip.id}" style="background:#1e293b; border:1px solid ${isFav ? "#f59e0b80" : "#334155"}; border-radius:12px; padding:14px; display:flex; flex-direction:column; gap:8px; transition:all 0.2s;">
               <div style="display:flex; justify-content:space-between; align-items:center; font-weight:bold; font-size:14px;">
@@ -3549,6 +3963,16 @@
                   >
                     <span style="font-size:14px; line-height:1;">${isFav ? "★" : "☆"}</span>
                     <span style="font-size:11px;">${isFav ? "Favorite" : "Favorite"}</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="pin-favorite-route-btn"
+                    data-testid="pin-favorite-route-btn"
+                    onclick="window.togglePinFavoriteFromTrip('${trip.id}')"
+                    style="background:${isRoutePinned ? "rgba(16, 185, 129, 0.2)" : "#0f172a"}; border:1px solid ${isRoutePinned ? "#10b981" : "#475569"}; color:${isRoutePinned ? "#34d399" : "#94a3b8"}; border-radius:8px; padding:3px 8px; font-size:11px; font-weight:bold; cursor:pointer; display:inline-flex; align-items:center; gap:4px;"
+                  >
+                    <span>📌</span>
+                    <span>${isRoutePinned ? "Pinned Route" : "Pin Route"}</span>
                   </button>
                 </div>
               </div>
@@ -3596,35 +4020,48 @@
       let currentHistoryModalTab = "trips";
 
       window.switchRideHistoryModalTab = function(tabName) {
-        currentHistoryModalTab = tabName === "ratings" ? "ratings" : "trips";
+        currentHistoryModalTab = tabName === "ratings" ? "ratings" : tabName === "favorites" ? "favorites" : "trips";
         const tripsContainer = document.getElementById("elite-history-entries-container");
         const ratingsContainer = document.getElementById("elite-history-ratings-container");
+        const favsContainer = document.getElementById("elite-history-favorites-container");
+        const inlineFavSection = document.getElementById("elite-history-inline-favorites-section");
         const tabTripsBtn = document.getElementById("hist-tab-trips-btn");
+        const tabFavsBtn = document.getElementById("hist-tab-favorites-btn");
         const tabRatingsBtn = document.getElementById("hist-tab-ratings-btn");
 
-        if (tripsContainer && ratingsContainer) {
-          tripsContainer.style.display = currentHistoryModalTab === "trips" ? "flex" : "none";
-          ratingsContainer.style.display = currentHistoryModalTab === "ratings" ? "flex" : "none";
+        if (tripsContainer) tripsContainer.style.display = currentHistoryModalTab === "trips" ? "flex" : "none";
+        if (inlineFavSection) inlineFavSection.style.display = currentHistoryModalTab === "trips" ? "block" : "none";
+        if (favsContainer) favsContainer.style.display = currentHistoryModalTab === "favorites" ? "flex" : "none";
+        if (ratingsContainer) ratingsContainer.style.display = currentHistoryModalTab === "ratings" ? "flex" : "none";
+
+        const resetBtn = (btn) => {
+          if (!btn) return;
+          btn.style.background = "transparent";
+          btn.style.color = "#94a3b8";
+          btn.style.borderColor = "transparent";
+        };
+        resetBtn(tabTripsBtn);
+        resetBtn(tabFavsBtn);
+        resetBtn(tabRatingsBtn);
+
+        if (currentHistoryModalTab === "trips" && tabTripsBtn) {
+          tabTripsBtn.style.background = "#1e293b";
+          tabTripsBtn.style.color = "#38bdf8";
+          tabTripsBtn.style.borderColor = "#38bdf8";
+        } else if (currentHistoryModalTab === "favorites" && tabFavsBtn) {
+          tabFavsBtn.style.background = "#1e293b";
+          tabFavsBtn.style.color = "#34d399";
+          tabFavsBtn.style.borderColor = "#10b981";
+        } else if (currentHistoryModalTab === "ratings" && tabRatingsBtn) {
+          tabRatingsBtn.style.background = "#1e293b";
+          tabRatingsBtn.style.color = "#fbbf24";
+          tabRatingsBtn.style.borderColor = "#f59e0b";
         }
-        if (tabTripsBtn && tabRatingsBtn) {
-          if (currentHistoryModalTab === "trips") {
-            tabTripsBtn.style.background = "#1e293b";
-            tabTripsBtn.style.color = "#38bdf8";
-            tabTripsBtn.style.borderColor = "#38bdf8";
-            tabRatingsBtn.style.background = "transparent";
-            tabRatingsBtn.style.color = "#94a3b8";
-            tabRatingsBtn.style.borderColor = "transparent";
-          } else {
-            tabRatingsBtn.style.background = "#1e293b";
-            tabRatingsBtn.style.color = "#fbbf24";
-            tabRatingsBtn.style.borderColor = "#f59e0b";
-            tabTripsBtn.style.background = "transparent";
-            tabTripsBtn.style.color = "#94a3b8";
-            tabTripsBtn.style.borderColor = "transparent";
-          }
-        }
+
         if (currentHistoryModalTab === "trips") {
           renderRideHistoryListItems();
+        } else if (currentHistoryModalTab === "favorites") {
+          renderRideHistoryFavoritesItems();
         } else {
           renderRideHistoryRatingsItems();
         }
@@ -3778,19 +4215,20 @@
         modal.style.cssText = 'position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:640px; max-width:95vw; max-height:90vh; background:#1e293b; color:#f8fafc; border-radius:16px; z-index:100001; box-shadow:0 25px 50px -12px rgba(0,0,0,0.75); display:flex; flex-direction:column; overflow:hidden; font-family:sans-serif; border:1px solid #334155;';
 
         const ratingsCount = getStoredDriverRatingsList().length;
+        const favRoutesCount = window.getPinnedFavoriteRoutes().length;
         const monthlyData = window.computeEliteMonthlySpending(ELITE_HISTORY_TRIPS);
         const totalSixMonthSpent = monthlyData.reduce((sum, m) => sum + m.spendingXCD, 0).toFixed(2);
 
         modal.innerHTML = `
           <div style="background:#0f172a; padding:16px 20px 12px 20px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #334155;">
             <div>
-              <div style="font-weight:bold; font-size:16px; color:#38bdf8; display:flex; align-items:center; gap:8px;">📜 Passenger Ride History & Driver Ratings</div>
-              <div style="font-size:11px; color:#94a3b8; margin-top:2px;">6-month spending analytics, favorite drivers, PDF receipts & past trip ratings</div>
+              <div style="font-weight:bold; font-size:16px; color:#38bdf8; display:flex; align-items:center; gap:8px;">📜 Passenger Ride History, Favorites & Driver Ratings</div>
+              <div style="font-size:11px; color:#94a3b8; margin-top:2px;">Pinned favorite routes & destinations, 6-month spending analytics, PDF receipts & past trip ratings</div>
             </div>
             <button id="hist-close-btn" style="background:transparent; border:none; color:#94a3b8; font-size:22px; cursor:pointer; line-height:1;">&times;</button>
           </div>
-          <!-- Tabs Bar: Completed Trips vs Past Driver Ratings & Feedback -->
-          <div style="background:#090d16; padding:8px 20px 0 20px; display:flex; gap:8px; border-bottom:1px solid #334155;">
+          <!-- Tabs Bar: Completed Trips, Favorites, and Past Driver Ratings & Feedback -->
+          <div style="background:#090d16; padding:8px 20px 0 20px; display:flex; gap:8px; border-bottom:1px solid #334155; flex-wrap:wrap;">
             <button
               type="button"
               id="hist-tab-trips-btn"
@@ -3800,6 +4238,16 @@
             >
               <span>📜</span>
               <span>Completed Trips (${ELITE_HISTORY_TRIPS.length})</span>
+            </button>
+            <button
+              type="button"
+              id="hist-tab-favorites-btn"
+              data-testid="history-favorites-tab"
+              onclick="window.switchRideHistoryModalTab('favorites')"
+              style="background:transparent; color:#94a3b8; border:1px solid transparent; border-bottom:none; padding:8px 14px; border-radius:10px 10px 0 0; font-size:12px; font-weight:800; cursor:pointer; display:flex; align-items:center; gap:6px;"
+            >
+              <span>📌</span>
+              <span>Favorites (<span id="hist-favorites-count-badge">${favRoutesCount}</span>)</span>
             </button>
             <button
               type="button"
@@ -3827,7 +4275,10 @@
           </div>
           <div id="elite-history-fav-summary" style="display:none; background:#451a0390; border-bottom:1px solid #f59e0b50; color:#fde68a; padding:8px 20px; font-size:11px; align-items:center; justify-content:space-between;"></div>
           <div id="elite-history-toast" style="display:none; background:#065f46; border-bottom:1px solid #10b981; color:#d1fae5; padding:8px 20px; font-size:12px; font-weight:bold; text-align:center;"></div>
+          <div id="elite-history-inline-favorites-section" data-testid="ride-history-favorites-section" style="background:#0c1322; border-bottom:1px solid #334155; padding:12px 20px;"></div>
           <div id="elite-history-entries-container" style="padding:18px 20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px; background:#0f172a80;">
+          </div>
+          <div id="elite-history-favorites-container" data-testid="history-favorites-list" style="padding:18px 20px; overflow-y:auto; flex:1; display:none; flex-direction:column; gap:12px; background:#0f172a80;">
           </div>
           <div id="elite-history-ratings-container" data-testid="history-ratings-feedback-list" style="padding:18px 20px; overflow-y:auto; flex:1; display:none; flex-direction:column; gap:12px; background:#0f172a80;">
           </div>
@@ -3835,6 +4286,7 @@
 
         document.body.appendChild(modal);
         renderRideHistoryListItems();
+        renderRideHistoryFavoritesItems();
         renderRideHistoryRatingsItems();
 
         window.mountHistoryRechartsChart = function() {
@@ -3846,11 +4298,15 @@
         };
         window.mountHistoryRechartsChart();
 
-        if (initialTab === "ratings") {
-          window.switchRideHistoryModalTab("ratings");
+        if (initialTab === "ratings" || initialTab === "favorites") {
+          window.switchRideHistoryModalTab(initialTab);
         }
 
         window.addEventListener("eliteride_favorites_updated", () => {
+          renderRideHistoryListItems();
+        });
+        window.addEventListener("eliteride_favorite_routes_updated", () => {
+          renderRideHistoryFavoritesItems();
           renderRideHistoryListItems();
         });
         window.addEventListener("eliteride_ratings_updated", () => {
