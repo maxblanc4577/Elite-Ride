@@ -858,16 +858,76 @@
               </select>
             </div>
 
-            <!-- Animated SVG Route Progress Visualization + ETA Countdown Timer + Synced Street View -->
-            <div id="est-route-map-card" data-testid="est-route-map-card" data-selected-destination="airport" data-travel-time="45 mins" data-eta-minutes="45" class="bg-slate-950/90 border border-sky-500/30 rounded-xl p-2.5 space-y-2">
-              <div class="flex items-center justify-between text-[10px]">
+            <!-- Animated SVG Route Progress Visualization + Live Map View Toggle + Interactive Zoom + ETA Countdown Timer + Synced Street View -->
+            <div id="est-route-map-card" data-testid="est-route-map-card" data-view-mode="route-path" data-zoom="1" data-selected-destination="airport" data-travel-time="45 mins" data-eta-minutes="45" class="bg-slate-950/90 border border-sky-500/30 rounded-xl p-2.5 space-y-2">
+              <div class="flex items-center justify-between gap-1 text-[10px] flex-wrap">
                 <span class="font-bold text-sky-400 flex items-center gap-1">
                   <span>🗺️</span>
-                  <span>Route Progress (Origin ➔ Destination)</span>
+                  <span id="est-active-view-label" data-testid="est-active-view-label">Route Path View</span>
                 </span>
-                <div class="flex items-center gap-1.5">
+                <div class="flex items-center gap-1">
+                  <button
+                    type="button"
+                    id="est-toggle-map-view-btn"
+                    data-testid="est-toggle-map-view-btn"
+                    data-view-mode="route-path"
+                    aria-label="Toggle between Route Path View and Live Map View"
+                    title="Toggle between Route Path View and Live Map View"
+                    class="text-[9px] font-bold bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 px-2 py-0.5 rounded border border-sky-400/50 cursor-pointer transition-all"
+                  >Live Map View</button>
                   <span id="est-route-progress-badge" class="font-mono font-bold text-emerald-400 bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-500/30">100%</span>
                   <button type="button" id="est-replay-route-btn" data-testid="est-replay-route-btn" class="text-[9px] bg-slate-800 hover:bg-slate-700 text-sky-300 px-1.5 py-0.5 rounded border border-slate-700 cursor-pointer">Replay</button>
+                </div>
+              </div>
+
+              <!-- Interactive Map Zoom Controls Bar -->
+              <div id="est-map-zoom-controls" data-testid="est-map-zoom-controls" class="flex items-center justify-between gap-1.5 bg-slate-900/90 border border-slate-800 rounded-lg px-2 py-1 text-[10px]">
+                <span class="text-slate-400 font-semibold flex items-center gap-1 shrink-0">
+                  <span>🔍</span>
+                  <span>Interactive Zoom:</span>
+                </span>
+                <div class="flex items-center gap-1">
+                  <button
+                    type="button"
+                    id="est-map-zoom-out"
+                    data-testid="est-map-zoom-out"
+                    aria-label="Zoom Out"
+                    title="Zoom Out"
+                    class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-sky-300 border border-slate-700 font-extrabold cursor-pointer leading-none"
+                  >−</button>
+                  <input
+                    type="range"
+                    id="est-map-zoom-slider"
+                    data-testid="est-map-zoom-slider"
+                    aria-label="Map Zoom Level"
+                    min="0.75"
+                    max="3"
+                    step="0.25"
+                    value="1"
+                    class="w-16 accent-sky-400 cursor-pointer h-1"
+                  />
+                  <button
+                    type="button"
+                    id="est-map-zoom-in"
+                    data-testid="est-map-zoom-in"
+                    aria-label="Zoom In"
+                    title="Zoom In"
+                    class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-sky-300 border border-slate-700 font-extrabold cursor-pointer leading-none"
+                  >+</button>
+                  <span
+                    id="est-map-zoom-level"
+                    data-testid="est-map-zoom-level"
+                    data-zoom="1"
+                    class="font-mono font-bold text-emerald-400 bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800 min-w-[34px] text-center"
+                  >1.0x</span>
+                  <button
+                    type="button"
+                    id="est-map-zoom-reset"
+                    data-testid="est-map-zoom-reset"
+                    aria-label="Reset Zoom"
+                    title="Reset Zoom to 1.0x"
+                    class="text-[9px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded border border-slate-700 cursor-pointer"
+                  >1x</button>
                 </div>
               </div>
 
@@ -920,36 +980,93 @@
                 </div>
               </div>
 
-              <svg id="est-route-svg" data-testid="est-route-svg" viewBox="0 0 320 92" class="w-full h-20 rounded-lg bg-slate-900/90 border border-slate-800 overflow-hidden block">
-                <defs>
-                  <linearGradient id="estRouteGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stop-color="#10b981" />
-                    <stop offset="55%" stop-color="#38bdf8" />
-                    <stop offset="100%" stop-color="#f43f5e" />
-                  </linearGradient>
-                </defs>
-                <line x1="0" y1="30" x2="320" y2="30" stroke="#1e293b" stroke-width="0.7" stroke-dasharray="3 3" />
-                <line x1="0" y1="60" x2="320" y2="60" stroke="#1e293b" stroke-width="0.7" stroke-dasharray="3 3" />
-                <path id="est-svg-route-bg" d="M 26 68 Q 156 12 286 24" fill="none" stroke="#1e293b" stroke-width="5" stroke-linecap="round" />
-                <path
-                  id="svg-route-path"
-                  class="svg-route-path"
-                  data-testid="svg-route-path"
-                  d="M 26 68 Q 156 12 286 24"
-                  fill="none"
-                  stroke="url(#estRouteGrad)"
-                  stroke-width="3.5"
-                  stroke-linecap="round"
-                  stroke-dasharray="280"
-                  stroke-dashoffset="0"
-                  data-route-progress="100"
-                  style="transition: stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1), stroke-dasharray 1.2s cubic-bezier(0.4, 0, 0.2, 1), d 0.6s ease, opacity 0.4s ease;"
-                />
-                <circle id="est-origin-dot" cx="26" cy="68" r="4.5" fill="#10b981" stroke="#ffffff" stroke-width="1.5" />
-                <text id="est-origin-svg-text" x="10" y="84" fill="#6ee7b7" font-size="8" font-weight="bold">Roseau Center</text>
-                <circle id="est-dest-dot" cx="286" cy="24" r="4.5" fill="#f43f5e" stroke="#ffffff" stroke-width="1.5" />
-                <text id="est-dest-svg-text" x="310" y="14" fill="#fda4af" font-size="8" font-weight="bold" text-anchor="end">Melville Hall (DOM)</text>
-              </svg>
+              <!-- View 1: Route Path View -->
+              <div id="est-route-path-view" data-testid="est-route-path-view" data-zoom="1" class="relative w-full h-20 rounded-lg bg-slate-900/90 border border-slate-800 overflow-hidden">
+                <svg id="est-route-svg" data-testid="est-route-svg" data-zoom="1" viewBox="0 0 320 92" class="w-full h-full block transition-transform duration-200 origin-center" style="transform: scale(1);">
+                  <defs>
+                    <linearGradient id="estRouteGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stop-color="#10b981" />
+                      <stop offset="55%" stop-color="#38bdf8" />
+                      <stop offset="100%" stop-color="#f43f5e" />
+                    </linearGradient>
+                  </defs>
+                  <line x1="0" y1="30" x2="320" y2="30" stroke="#1e293b" stroke-width="0.7" stroke-dasharray="3 3" />
+                  <line x1="0" y1="60" x2="320" y2="60" stroke="#1e293b" stroke-width="0.7" stroke-dasharray="3 3" />
+                  <path id="est-svg-route-bg" d="M 26 68 Q 156 12 286 24" fill="none" stroke="#1e293b" stroke-width="5" stroke-linecap="round" />
+                  <path
+                    id="svg-route-path"
+                    class="svg-route-path"
+                    data-testid="svg-route-path"
+                    d="M 26 68 Q 156 12 286 24"
+                    fill="none"
+                    stroke="url(#estRouteGrad)"
+                    stroke-width="3.5"
+                    stroke-linecap="round"
+                    stroke-dasharray="280"
+                    stroke-dashoffset="0"
+                    data-route-progress="100"
+                    style="transition: stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1), stroke-dasharray 1.2s cubic-bezier(0.4, 0, 0.2, 1), d 0.6s ease, opacity 0.4s ease;"
+                  />
+                  <circle id="est-origin-dot" cx="26" cy="68" r="4.5" fill="#10b981" stroke="#ffffff" stroke-width="1.5" />
+                  <text id="est-origin-svg-text" x="10" y="84" fill="#6ee7b7" font-size="8" font-weight="bold">Roseau Center</text>
+                  <circle id="est-dest-dot" cx="286" cy="24" r="4.5" fill="#f43f5e" stroke="#ffffff" stroke-width="1.5" />
+                  <text id="est-dest-svg-text" x="310" y="14" fill="#fda4af" font-size="8" font-weight="bold" text-anchor="end">Melville Hall (DOM)</text>
+                </svg>
+              </div>
+
+              <!-- View 2: Live Map View with Interactive Zoom -->
+              <div id="est-live-map-view" data-testid="est-live-map-view" data-zoom="1" style="display:none;" class="relative w-full h-28 rounded-lg bg-slate-950 border border-emerald-500/40 overflow-hidden">
+                <div id="est-live-map-canvas" data-testid="est-live-map-canvas" data-zoom="1" class="w-full h-full transition-transform duration-200 origin-center relative" style="transform: scale(1);">
+                  <svg id="est-live-map-svg" data-testid="est-live-map-svg" viewBox="0 0 320 112" class="w-full h-full block">
+                    <!-- Caribbean Sea & Dominica Topographic Island Contour -->
+                    <rect x="0" y="0" width="320" height="112" fill="#041326" />
+                    <g stroke="#0f2942" stroke-width="0.6" stroke-dasharray="2 2">
+                      <line x1="0" y1="28" x2="320" y2="28" />
+                      <line x1="0" y1="56" x2="320" y2="56" />
+                      <line x1="0" y1="84" x2="320" y2="84" />
+                      <line x1="80" y1="0" x2="80" y2="112" />
+                      <line x1="160" y1="0" x2="160" y2="112" />
+                      <line x1="240" y1="0" x2="240" y2="112" />
+                    </g>
+                    <!-- Dominica Island Landmass Silhouette -->
+                    <path
+                      d="M 18 76 Q 30 34 85 18 Q 165 6 245 14 Q 295 22 304 48 Q 292 84 220 96 Q 125 104 42 92 Z"
+                      fill="#062c24"
+                      stroke="#10b981"
+                      stroke-opacity="0.45"
+                      stroke-width="1.2"
+                    />
+                    <!-- Island Primary Highway Network -->
+                    <path d="M 24 72 Q 110 48 198 52 Q 250 38 292 26" fill="none" stroke="#1e293b" stroke-width="3" stroke-linecap="round" />
+                    <path d="M 38 22 Q 140 28 262 18" fill="none" stroke="#1e293b" stroke-width="2" stroke-dasharray="3 2" />
+                    <!-- Active GPS Live Route Path -->
+                    <path
+                      id="est-live-map-route-path"
+                      class="svg-route-path"
+                      data-testid="est-live-map-route-path"
+                      d="M 26 68 Q 156 12 286 24"
+                      fill="none"
+                      stroke="#38bdf8"
+                      stroke-width="3"
+                      stroke-linecap="round"
+                      stroke-dasharray="280"
+                      stroke-dashoffset="0"
+                    />
+                    <!-- Origin & Destination Live GPS Pins -->
+                    <circle id="est-live-origin-pin" cx="26" cy="68" r="5" fill="#10b981" stroke="#ffffff" stroke-width="1.5" />
+                    <text id="est-live-origin-label" x="12" y="88" fill="#6ee7b7" font-size="7.5" font-weight="bold">Roseau Center</text>
+                    <circle id="est-live-dest-pin" cx="286" cy="24" r="5.5" fill="#f43f5e" stroke="#ffffff" stroke-width="1.5" />
+                    <text id="est-live-dest-label" x="308" y="14" fill="#fda4af" font-size="7.5" font-weight="bold" text-anchor="end">Melville Hall (DOM)</text>
+                    <!-- Live Dispatch Vehicle Marker along Route -->
+                    <circle id="est-live-vehicle-dot" cx="156" cy="32" r="4" fill="#facc15" stroke="#0f172a" stroke-width="1.2" />
+                    <text id="est-live-vehicle-label" x="156" y="23" fill="#fde047" font-size="7" font-weight="bold" text-anchor="middle">🚕 LIVE GPS</text>
+                  </svg>
+                </div>
+                <div class="absolute bottom-1 left-1.5 right-1.5 flex items-center justify-between pointer-events-none text-[8.5px] font-mono">
+                  <span id="est-live-map-coords" class="bg-slate-950/85 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-500/30">GPS: 15.5470° N, 61.3000° W</span>
+                  <span id="est-live-map-eta-pill" class="bg-slate-950/85 text-sky-300 px-1.5 py-0.5 rounded border border-sky-500/30">Live Map • 45 mins (24.5 miles)</span>
+                </div>
+              </div>
 
               <!-- Destination Street View Synced with Travel Time Data -->
               <div id="est-street-view-panel" data-testid="est-street-view-panel" class="bg-slate-900/95 border border-sky-500/30 rounded-lg overflow-hidden">
@@ -1060,6 +1177,36 @@
           if (origTxt) origTxt.textContent = p0.label;
           if (destTxt) destTxt.textContent = metaItem?.shortName || p1.label;
 
+          // Also sync Live Map View SVG elements
+          const liveRoutePath = document.getElementById('est-live-map-route-path');
+          const liveOrigPin = document.getElementById('est-live-origin-pin');
+          const liveOrigLabel = document.getElementById('est-live-origin-label');
+          const liveDestPin = document.getElementById('est-live-dest-pin');
+          const liveDestLabel = document.getElementById('est-live-dest-label');
+          const liveVehDot = document.getElementById('est-live-vehicle-dot');
+          const liveVehLabel = document.getElementById('est-live-vehicle-label');
+          const liveCoordsEl = document.getElementById('est-live-map-coords');
+          const liveEtaPillEl = document.getElementById('est-live-map-eta-pill');
+          const midX = Math.round(0.25 * p0.x + 0.5 * cx + 0.25 * p1.x);
+          const midY = Math.round(0.25 * p0.y + 0.5 * cy + 0.25 * p1.y);
+          if (liveRoutePath) liveRoutePath.setAttribute('d', dStr);
+          if (liveOrigPin) { liveOrigPin.setAttribute('cx', String(p0.x)); liveOrigPin.setAttribute('cy', String(p0.y)); }
+          if (liveOrigLabel) liveOrigLabel.textContent = p0.label;
+          if (liveDestPin) { liveDestPin.setAttribute('cx', String(p1.x)); liveDestPin.setAttribute('cy', String(p1.y)); }
+          if (liveDestLabel) liveDestLabel.textContent = metaItem?.shortName || p1.label;
+          if (liveVehDot) { liveVehDot.setAttribute('cx', String(midX)); liveVehDot.setAttribute('cy', String(midY)); }
+          if (liveVehLabel) { liveVehLabel.setAttribute('x', String(midX)); liveVehLabel.setAttribute('y', String(Math.max(10, midY - 8))); }
+          if (liveCoordsEl) {
+            liveCoordsEl.textContent = isReset || !destKey
+              ? 'GPS: Standby (0.0000° N, 0.0000° W)'
+              : `GPS: ${(15.25 + (92 - p1.y) * 0.004).toFixed(4)}° N, ${(61.45 - p1.x * 0.0006).toFixed(4)}° W`;
+          }
+          if (liveEtaPillEl) {
+            liveEtaPillEl.textContent = isReset || !destKey
+              ? 'Live Map • 0 mins (0.0 miles)'
+              : `Live Map • ${metaItem?.timeStr || '45 mins'} (${metaItem?.distStr || '24.5 miles'})`;
+          }
+
           let totalLen = 280;
           try {
             if (typeof pathEl.getTotalLength === 'function') {
@@ -1099,6 +1246,100 @@
         let activeMetaOverride = null;
         let estHeadingDeg = 42;
         let estPanOffsetPct = 50;
+        let estMapViewMode = 'route-path';
+        let estMapZoomScale = 1.0;
+
+        const applyEstMapZoom = (nextZoom) => {
+          const clamped = Math.max(0.75, Math.min(3.0, Math.round(Number(nextZoom || 1) * 4) / 4));
+          estMapZoomScale = clamped;
+          const zoomStr = `${clamped.toFixed(clamped % 1 === 0 ? 1 : 2)}x`;
+          const mapCardEl = document.getElementById('est-route-map-card');
+          const routePathViewEl = document.getElementById('est-route-path-view');
+          const routeSvgEl = document.getElementById('est-route-svg');
+          const liveMapViewEl = document.getElementById('est-live-map-view');
+          const liveMapCanvasEl = document.getElementById('est-live-map-canvas');
+          const zoomLevelBadge = document.getElementById('est-map-zoom-level');
+          const zoomSlider = document.getElementById('est-map-zoom-slider');
+
+          if (mapCardEl) mapCardEl.setAttribute('data-zoom', String(clamped));
+          if (routePathViewEl) routePathViewEl.setAttribute('data-zoom', String(clamped));
+          if (routeSvgEl) {
+            routeSvgEl.style.transform = `scale(${clamped})`;
+            routeSvgEl.setAttribute('data-zoom', String(clamped));
+          }
+          if (liveMapViewEl) liveMapViewEl.setAttribute('data-zoom', String(clamped));
+          if (liveMapCanvasEl) {
+            liveMapCanvasEl.style.transform = `scale(${clamped})`;
+            liveMapCanvasEl.setAttribute('data-zoom', String(clamped));
+          }
+          if (zoomLevelBadge) {
+            zoomLevelBadge.textContent = zoomStr;
+            zoomLevelBadge.setAttribute('data-zoom', String(clamped));
+          }
+          if (zoomSlider && Number(zoomSlider.value) !== clamped) {
+            zoomSlider.value = String(clamped);
+          }
+        };
+
+        const setEstMapViewMode = (mode) => {
+          estMapViewMode = mode === 'live-map' ? 'live-map' : 'route-path';
+          const isLive = estMapViewMode === 'live-map';
+          const mapCardEl = document.getElementById('est-route-map-card');
+          const activeLabelEl = document.getElementById('est-active-view-label');
+          const toggleBtnEl = document.getElementById('est-toggle-map-view-btn');
+          const routePathViewEl = document.getElementById('est-route-path-view');
+          const liveMapViewEl = document.getElementById('est-live-map-view');
+
+          if (mapCardEl) mapCardEl.setAttribute('data-view-mode', estMapViewMode);
+          if (activeLabelEl) {
+            activeLabelEl.textContent = isLive ? 'Live Map View' : 'Route Path View';
+          }
+          if (toggleBtnEl) {
+            toggleBtnEl.setAttribute('data-view-mode', estMapViewMode);
+            toggleBtnEl.textContent = isLive ? 'Route Path View' : 'Live Map View';
+          }
+          if (routePathViewEl) {
+            routePathViewEl.style.display = isLive ? 'none' : 'block';
+          }
+          if (liveMapViewEl) {
+            liveMapViewEl.style.display = isLive ? 'block' : 'none';
+          }
+          applyEstMapZoom(estMapZoomScale);
+        };
+
+        const toggleMapViewBtn = document.getElementById('est-toggle-map-view-btn');
+        if (toggleMapViewBtn) {
+          toggleMapViewBtn.addEventListener('click', () => {
+            setEstMapViewMode(estMapViewMode === 'route-path' ? 'live-map' : 'route-path');
+          });
+        }
+
+        const zoomInBtn = document.getElementById('est-map-zoom-in');
+        const zoomOutBtn = document.getElementById('est-map-zoom-out');
+        const zoomResetBtn = document.getElementById('est-map-zoom-reset');
+        const zoomSliderEl = document.getElementById('est-map-zoom-slider');
+        if (zoomInBtn) {
+          zoomInBtn.addEventListener('click', () => applyEstMapZoom(estMapZoomScale + 0.25));
+        }
+        if (zoomOutBtn) {
+          zoomOutBtn.addEventListener('click', () => applyEstMapZoom(estMapZoomScale - 0.25));
+        }
+        if (zoomResetBtn) {
+          zoomResetBtn.addEventListener('click', () => applyEstMapZoom(1.0));
+        }
+        if (zoomSliderEl) {
+          zoomSliderEl.addEventListener('input', (e) => applyEstMapZoom(parseFloat(e.target.value) || 1.0));
+          zoomSliderEl.addEventListener('change', (e) => applyEstMapZoom(parseFloat(e.target.value) || 1.0));
+        }
+        ['est-route-path-view', 'est-live-map-view'].forEach(id => {
+          const vp = document.getElementById(id);
+          if (vp) {
+            vp.addEventListener('wheel', (e) => {
+              e.preventDefault();
+              applyEstMapZoom(estMapZoomScale + (e.deltaY < 0 ? 0.25 : -0.25));
+            }, { passive: false });
+          }
+        });
 
         const destStreetViewMeta = {
           airport: {
