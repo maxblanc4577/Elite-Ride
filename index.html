@@ -180,19 +180,42 @@
         position: relative !important;
         z-index: 30 !important;
       }
+      @keyframes estRoutePulseGlow {
+        0%, 100% {
+          filter: drop-shadow(0 0 3px rgba(56, 189, 248, 0.7)) drop-shadow(0 0 7px rgba(16, 185, 129, 0.45));
+          stroke-width: 3.5px;
+          opacity: 0.92;
+        }
+        50% {
+          filter: drop-shadow(0 0 9px rgba(56, 189, 248, 1)) drop-shadow(0 0 16px rgba(16, 185, 129, 0.9));
+          stroke-width: 4.6px;
+          opacity: 1;
+        }
+      }
       #svg-route-path,
       .svg-route-path,
       #trip-summary-route-path,
       #est-svg-route-path {
         transition: stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1), stroke-dasharray 1.2s cubic-bezier(0.4, 0, 0.2, 1), d 0.6s ease, stroke 0.4s ease, opacity 0.4s ease !important;
-        will-change: stroke-dashoffset, stroke-dasharray, d;
+        will-change: stroke-dashoffset, stroke-dasharray, d, filter;
+      }
+      #est-route-map-card #svg-route-path,
+      #est-route-map-card #est-live-map-route-path,
+      #svg-route-path.live-route-pulse-glow {
+        animation: estRoutePulseGlow 2.2s ease-in-out infinite !important;
+        filter: drop-shadow(0 0 5px rgba(56, 189, 248, 0.85)) drop-shadow(0 0 11px rgba(16, 185, 129, 0.65));
+      }
+      #est-route-map-card #svg-route-path[data-route-progress="0"],
+      #svg-route-path[data-route-progress="0"] {
+        animation: none !important;
+        filter: none !important;
       }
     </style>
   </head>
   <body class="bg-slate-950 text-slate-100 antialiased selection:bg-emerald-500 selection:text-white overscroll-none select-none">
     <div id="root"></div>
     <script>
-      // Preserve persistent user data (Recent Destinations, Ride History, Ratings, Favorite Routes, Driver Online Status)
+      // Preserve persistent user data (Recent Destinations, Ride History, Ratings, Favorite Routes, Driver Online Status, Offline Estimation Cache)
       const ELITE_PROTECTED_STORAGE_KEYS = [
         'eliteride_recent_destinations',
         'recentDestinations',
@@ -204,8 +227,30 @@
         'eliteride_user_profile',
         'eliteride_rider_photo',
         'eliteride_drivers_online',
-        'elite_driver_status'
+        'elite_driver_status',
+        'eliteride_offline_last_estimation',
+        'eliteride_offline_mode_enabled',
+        'eliteride_last_est_printed_summary'
       ];
+
+      const ELITE_ESTIMATION_SW_CACHE_NAME = 'elite-ride-estimation-cache-v1';
+      const ELITE_OFFLINE_ESTIMATION_CACHE_URL = '/api/offline-estimation-cache';
+      const ELITE_OFFLINE_LAST_ESTIMATION_KEY = 'eliteride_offline_last_estimation';
+
+      // Register Service Worker for Offline Mountain Terrain Mode
+      if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').then((reg) => {
+            window.__ELITE_SW_REGISTRATION = reg;
+            if (window.__ELITE_LAST_CACHED_ESTIMATION && reg.active) {
+              reg.active.postMessage({
+                type: 'CACHE_RIDE_ESTIMATION',
+                estimationData: window.__ELITE_LAST_CACHED_ESTIMATION
+              });
+            }
+          }).catch(() => {});
+        });
+      }
 
       window.NO_DRIVERS_ONLINE_MESSAGE =
         "There are no drivers online to facilitate your designated or selected ride. We're unable to designate a driver to complete the journey because there are no drivers online at present. Please try back later when a driver is available.";
@@ -831,7 +876,16 @@
             </div>
 
             <div>
-              <label class="text-[11px] text-slate-400 block mb-1">Pickup Location</label>
+              <div class="flex items-center justify-between mb-1 gap-1">
+                <label class="text-[11px] text-slate-400">Pickup Location</label>
+                <button
+                  type="button"
+                  id="est-pickup-to-dropoff-btn"
+                  data-testid="est-pickup-to-dropoff-btn"
+                  title="Click to remove pickup and set as dropoff location"
+                  class="text-[9px] font-bold bg-emerald-950/90 hover:bg-rose-950 text-emerald-300 hover:text-rose-200 px-1.5 py-0.5 rounded border border-emerald-500/40 cursor-pointer transition-all"
+                >Pickup ➔ Set Dropoff</button>
+              </div>
               <select id="est-pickup" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2 text-white">
                 <option value="">-- Select Pickup Location --</option>
                 <option value="roseau" selected>Roseau Center / Cruise Ship Berth</option>
@@ -839,6 +893,9 @@
                 <option value="trafalgar">Trafalgar Falls Nature Site</option>
                 <option value="soufriere">Soufriere Bay / Scotts Head</option>
                 <option value="portsmouth">Portsmouth Center</option>
+                <option value="airport">Melville Hall Airport (DOM)</option>
+                <option value="emerald_pool">Emerald Pool Rainforest</option>
+                <option value="cabrit_park">Cabrits National Park</option>
               </select>
             </div>
             <div>
@@ -982,6 +1039,10 @@
 
               <!-- View 1: Route Path View -->
               <div id="est-route-path-view" data-testid="est-route-path-view" data-zoom="1" class="relative w-full h-20 rounded-lg bg-slate-900/90 border border-slate-800 overflow-hidden">
+                <div id="est-live-tracking-badge" data-testid="est-live-tracking-badge" data-live-tracking="active" class="absolute top-1 left-1.5 z-10 pointer-events-none flex items-center gap-1 bg-slate-950/85 border border-emerald-500/40 rounded px-1.5 py-0.5 text-[8px] font-mono text-emerald-300">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                  <span>LIVE TRACKING</span>
+                </div>
                 <svg id="est-route-svg" data-testid="est-route-svg" data-zoom="1" viewBox="0 0 320 92" class="w-full h-full block transition-transform duration-200 origin-center" style="transform: scale(1);">
                   <defs>
                     <linearGradient id="estRouteGrad" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -989,23 +1050,32 @@
                       <stop offset="55%" stop-color="#38bdf8" />
                       <stop offset="100%" stop-color="#f43f5e" />
                     </linearGradient>
+                    <filter id="estRouteGlowFilter" x="-25%" y="-25%" width="150%" height="150%">
+                      <feGaussianBlur stdDeviation="2.5" result="routeBlur" />
+                      <feMerge>
+                        <feMergeNode in="routeBlur" />
+                        <feMergeNode in="SourceGraphic" />
+                      </feMerge>
+                    </filter>
                   </defs>
                   <line x1="0" y1="30" x2="320" y2="30" stroke="#1e293b" stroke-width="0.7" stroke-dasharray="3 3" />
                   <line x1="0" y1="60" x2="320" y2="60" stroke="#1e293b" stroke-width="0.7" stroke-dasharray="3 3" />
                   <path id="est-svg-route-bg" d="M 26 68 Q 156 12 286 24" fill="none" stroke="#1e293b" stroke-width="5" stroke-linecap="round" />
                   <path
                     id="svg-route-path"
-                    class="svg-route-path"
+                    class="svg-route-path live-route-pulse-glow"
                     data-testid="svg-route-path"
+                    data-live-tracking="active"
                     d="M 26 68 Q 156 12 286 24"
                     fill="none"
                     stroke="url(#estRouteGrad)"
+                    filter="url(#estRouteGlowFilter)"
                     stroke-width="3.5"
                     stroke-linecap="round"
                     stroke-dasharray="280"
                     stroke-dashoffset="0"
                     data-route-progress="100"
-                    style="transition: stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1), stroke-dasharray 1.2s cubic-bezier(0.4, 0, 0.2, 1), d 0.6s ease, opacity 0.4s ease;"
+                    style="transition: stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1), stroke-dasharray 1.2s cubic-bezier(0.4, 0, 0.2, 1), d 0.6s ease, opacity 0.4s ease; animation: estRoutePulseGlow 2.2s ease-in-out infinite;"
                   />
                   <circle id="est-origin-dot" cx="26" cy="68" r="4.5" fill="#10b981" stroke="#ffffff" stroke-width="1.5" />
                   <text id="est-origin-svg-text" x="10" y="84" fill="#6ee7b7" font-size="8" font-weight="bold">Roseau Center</text>
@@ -1102,6 +1172,66 @@
                     </div>
                   </div>
                 </div>
+              </div>
+
+              <!-- Service Worker Offline Mode (Remote Mountain Terrain Cache) -->
+              <div
+                id="est-offline-mode-panel"
+                data-testid="est-offline-mode-panel"
+                data-offline-mode="false"
+                data-sw-cached="true"
+                class="bg-slate-900/95 border border-amber-500/30 rounded-lg px-2.5 py-1.5 space-y-1 text-[10px]"
+              >
+                <div class="flex items-center justify-between gap-1 flex-wrap">
+                  <span id="est-offline-mode-status" data-testid="est-offline-mode-status" class="font-bold text-amber-300 flex items-center gap-1">
+                    <span>⛰️</span>
+                    <span>SW Offline Cache Ready</span>
+                  </span>
+                  <div class="flex items-center gap-1">
+                    <button
+                      type="button"
+                      id="est-offline-mode-toggle-btn"
+                      data-testid="est-offline-mode-toggle-btn"
+                      aria-label="Toggle Offline Mountain Mode"
+                      title="Simulate or toggle Offline Mode for remote mountain terrain with no cell service"
+                      class="text-[9px] font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 px-1.5 py-0.5 rounded border border-amber-400/50 cursor-pointer transition-all"
+                    >Offline Mode</button>
+                    <button
+                      type="button"
+                      id="est-restore-cached-estimate-btn"
+                      data-testid="est-restore-cached-estimate-btn"
+                      aria-label="Restore Cached Estimate"
+                      title="Restore last successful ride estimation from Service Worker cache"
+                      class="text-[9px] font-bold bg-slate-800 hover:bg-slate-700 text-sky-300 px-1.5 py-0.5 rounded border border-slate-700 cursor-pointer transition-all"
+                    >Restore Cache</button>
+                  </div>
+                </div>
+                <div
+                  id="est-offline-cached-summary"
+                  data-testid="est-offline-cached-summary"
+                  class="text-[9px] font-mono text-slate-300 truncate"
+                >Cached Route: Roseau Center ➔ Melville Hall (DOM) • EC$ 120.00 • 45 mins</div>
+              </div>
+
+              <!-- Print Trip Summary Button (jsPDF Printable Receipt of Route, ETA, & Fare Estimate) -->
+              <div class="pt-0.5 space-y-1.5">
+                <button
+                  type="button"
+                  id="est-print-trip-summary-btn"
+                  data-testid="est-print-trip-summary-btn"
+                  aria-label="Print Trip Summary"
+                  title="Generate a printable jsPDF receipt of the route, ETA, and fare estimate"
+                  class="w-full py-1.5 px-2.5 bg-emerald-600/90 hover:bg-emerald-500 text-white font-bold text-[10px] rounded-lg border border-emerald-400/60 shadow transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <span>🖨️</span>
+                  <span>Print Trip Summary</span>
+                </button>
+                <div
+                  id="est-print-summary-receipt-preview"
+                  data-testid="est-print-summary-receipt-preview"
+                  style="display:none;"
+                  class="bg-slate-900/95 border border-emerald-500/40 rounded-lg p-2 text-[9.5px] font-mono text-slate-200 space-y-1"
+                ></div>
               </div>
             </div>
 
@@ -1217,11 +1347,18 @@
           pathEl.style.transition = 'stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1), stroke-dasharray 1.2s cubic-bezier(0.4, 0, 0.2, 1), d 0.6s ease, opacity 0.4s ease';
           pathEl.setAttribute('stroke-dasharray', String(totalLen));
           pathEl.style.strokeDasharray = `${totalLen}`;
+          const liveTrackingBadgeEl = document.getElementById('est-live-tracking-badge');
 
           if (isReset || !pickupKey || !destKey) {
             pathEl.setAttribute('stroke-dashoffset', String(totalLen));
             pathEl.style.strokeDashoffset = `${totalLen}`;
             pathEl.setAttribute('data-route-progress', '0');
+            pathEl.setAttribute('data-live-tracking', 'standby');
+            pathEl.style.animation = 'none';
+            if (liveTrackingBadgeEl) {
+              liveTrackingBadgeEl.setAttribute('data-live-tracking', 'standby');
+              liveTrackingBadgeEl.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span><span>STANDBY</span>';
+            }
             if (progBadge) progBadge.textContent = '0%';
             return;
           }
@@ -1230,15 +1367,23 @@
           pathEl.setAttribute('stroke-dashoffset', String(totalLen));
           pathEl.style.strokeDashoffset = `${totalLen}`;
           pathEl.setAttribute('data-route-progress', '0');
+          pathEl.setAttribute('data-live-tracking', 'active');
+          pathEl.style.animation = 'estRoutePulseGlow 2.2s ease-in-out infinite';
+          if (liveTrackingBadgeEl) {
+            liveTrackingBadgeEl.setAttribute('data-live-tracking', 'active');
+            liveTrackingBadgeEl.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span><span>LIVE TRACKING</span>';
+          }
           if (progBadge) progBadge.textContent = '0%';
 
           clearTimeout(window._estRouteAnimTimer);
           window._estRouteAnimTimer = setTimeout(() => {
             if (!pathEl) return;
             pathEl.style.transition = 'stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1), stroke-dasharray 1.2s cubic-bezier(0.4, 0, 0.2, 1), d 0.6s ease, opacity 0.4s ease';
+            pathEl.style.animation = 'estRoutePulseGlow 2.2s ease-in-out infinite';
             pathEl.setAttribute('stroke-dashoffset', '0');
             pathEl.style.strokeDashoffset = '0';
             pathEl.setAttribute('data-route-progress', '100');
+            pathEl.setAttribute('data-live-tracking', 'active');
             if (progBadge) progBadge.textContent = '100%';
           }, 25);
         };
@@ -1638,10 +1783,459 @@
 
             animateEstSvgRoute(pickupVal, canonicalKey, false);
             startEstEtaCountdown(parsedMinutes, canonicalKey, { ...meta, ...canonicalEntry, key: canonicalKey }, timeStr, distStr, false);
+
+            // Cache last successful ride estimation in Service Worker CacheStorage & localStorage for Offline Mountain Mode
+            const pickupLabel = pickupSelect?.options[pickupSelect.selectedIndex]?.text || estPickupCoords[pickupVal]?.label || 'Roseau Center';
+            const shortDestTitle = canonicalEntry?.shortName || meta?.shortName || (canonicalEntry?.name || 'Melville Hall Airport (DOM)').split(' - ')[0];
+            const estimationSnapshot = {
+              pickupKey: pickupVal,
+              pickupName: pickupLabel,
+              destinationKey: canonicalKey,
+              destinationName: shortDestTitle,
+              destinationFullName: canonicalEntry?.name || meta?.name || shortDestTitle,
+              district: canonicalEntry?.district || meta?.district || 'St. Andrew',
+              vehicleCategory: window.eliteVehicleCategory || 'standard',
+              estimatedFare: `EC$ ${finalFare}`,
+              finalPrice: `EC$ ${finalFare}`,
+              fareAmount: Number(finalFare),
+              travelTime: timeStr,
+              etaMinutes: parsedMinutes,
+              distance: distStr,
+              corridor: svPreset?.corridor || 'Imperial Road / Trans-Insular Corridor',
+              cachedAt: new Date().toISOString(),
+              cachedTimestamp: Date.now(),
+              source: 'service-worker-cache',
+              terrainNote: 'Cached for remote mountain terrain (no cell service)'
+            };
+            window.cacheLastRideEstimationOffline(estimationSnapshot);
           } finally {
             isInternalEstUpdate = false;
           }
         };
+
+        let isEstOfflineMode = (typeof navigator !== 'undefined' && navigator.onLine === false) ||
+          localStorage.getItem('eliteride_offline_mode_enabled') === 'true';
+
+        const updateOfflinePanelUI = (snapshot, offlineActive = isEstOfflineMode) => {
+          const panelEl = document.getElementById('est-offline-mode-panel');
+          const statusEl = document.getElementById('est-offline-mode-status');
+          const toggleBtnEl = document.getElementById('est-offline-mode-toggle-btn');
+          const summaryEl = document.getElementById('est-offline-cached-summary');
+          const mapCardEl = document.getElementById('est-route-map-card');
+          const data = snapshot || window.getLastCachedRideEstimationSync();
+
+          if (panelEl) {
+            panelEl.setAttribute('data-offline-mode', offlineActive ? 'true' : 'false');
+            panelEl.setAttribute('data-sw-cached', data ? 'true' : 'false');
+            panelEl.className = offlineActive
+              ? 'bg-amber-950/85 border border-amber-400/70 rounded-lg px-2.5 py-1.5 space-y-1 text-[10px]'
+              : 'bg-slate-900/95 border border-amber-500/30 rounded-lg px-2.5 py-1.5 space-y-1 text-[10px]';
+          }
+          if (mapCardEl) {
+            mapCardEl.setAttribute('data-offline-mode', offlineActive ? 'true' : 'false');
+            if (data) {
+              mapCardEl.setAttribute('data-cached-destination', data.destinationKey || 'airport');
+              mapCardEl.setAttribute('data-cached-fare', data.estimatedFare || 'EC$ 120.00');
+              mapCardEl.setAttribute('data-cached-eta', data.travelTime || '45 mins');
+            }
+          }
+          if (statusEl) {
+            statusEl.innerHTML = offlineActive
+              ? '<span>⛰️</span><span>Offline Mountain Mode Active (No Cell Service)</span>'
+              : '<span>⛰️</span><span>SW Offline Cache Ready</span>';
+          }
+          if (toggleBtnEl) {
+            toggleBtnEl.textContent = offlineActive ? 'Online Mode' : 'Offline Mode';
+            toggleBtnEl.setAttribute('data-offline-mode', offlineActive ? 'true' : 'false');
+          }
+          if (summaryEl && data) {
+            const pShort = (data.pickupName || 'Roseau Center').split(' / ')[0];
+            summaryEl.textContent = `${offlineActive ? '⛰️ Using Cached' : 'Cached Route'}: ${pShort} ➔ ${data.destinationName} • ${data.estimatedFare} • ${data.travelTime}`;
+            summaryEl.setAttribute('data-cached-pickup', data.pickupKey || 'roseau');
+            summaryEl.setAttribute('data-cached-destination', data.destinationKey || 'airport');
+            summaryEl.setAttribute('data-cached-fare', data.estimatedFare || 'EC$ 120.00');
+            summaryEl.setAttribute('data-cached-eta', data.travelTime || '45 mins');
+          }
+        };
+
+        window.getLastCachedRideEstimationSync = function() {
+          if (window.__ELITE_LAST_CACHED_ESTIMATION) {
+            return window.__ELITE_LAST_CACHED_ESTIMATION;
+          }
+          try {
+            const raw = localStorage.getItem(ELITE_OFFLINE_LAST_ESTIMATION_KEY);
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              if (parsed && parsed.destinationKey) {
+                window.__ELITE_LAST_CACHED_ESTIMATION = parsed;
+                return parsed;
+              }
+            }
+          } catch (e) {}
+          return {
+            pickupKey: 'roseau',
+            pickupName: 'Roseau Center / Cruise Ship Berth',
+            destinationKey: 'airport',
+            destinationName: 'Melville Hall Airport (DOM)',
+            destinationFullName: 'Melville Hall Airport (DOM) - 45 min',
+            district: 'St. Andrew',
+            vehicleCategory: 'standard',
+            estimatedFare: 'EC$ 120.00',
+            finalPrice: 'EC$ 120.00',
+            fareAmount: 120,
+            travelTime: '45 mins',
+            etaMinutes: 45,
+            distance: '24.5 miles',
+            corridor: 'Imperial Road / Trans-Insular Corridor',
+            source: 'service-worker-cache'
+          };
+        };
+
+        window.cacheLastRideEstimationOffline = function(estimationSnapshot) {
+          if (!estimationSnapshot) return null;
+          window.__ELITE_LAST_CACHED_ESTIMATION = estimationSnapshot;
+          try {
+            localStorage.setItem(ELITE_OFFLINE_LAST_ESTIMATION_KEY, JSON.stringify(estimationSnapshot));
+          } catch (e) {}
+
+          // Write to Service Worker CacheStorage API directly + postMessage to active Service Worker
+          if (typeof window.caches !== 'undefined' && typeof window.caches.open === 'function') {
+            window.caches.open(ELITE_ESTIMATION_SW_CACHE_NAME).then((cache) => {
+              const resp = new Response(JSON.stringify(estimationSnapshot), {
+                headers: { 'Content-Type': 'application/json', 'X-Elite-Offline-Cache': 'true' }
+              });
+              cache.put(ELITE_OFFLINE_ESTIMATION_CACHE_URL, resp.clone());
+              cache.put('/api/offline-ride-cache', resp.clone());
+            }).catch(() => {});
+          }
+          if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+            try {
+              if (navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage({
+                  type: 'CACHE_RIDE_ESTIMATION',
+                  estimationData: estimationSnapshot
+                });
+              } else if (window.__ELITE_SW_REGISTRATION && window.__ELITE_SW_REGISTRATION.active) {
+                window.__ELITE_SW_REGISTRATION.active.postMessage({
+                  type: 'CACHE_RIDE_ESTIMATION',
+                  estimationData: estimationSnapshot
+                });
+              }
+            } catch (e) {}
+          }
+          updateOfflinePanelUI(estimationSnapshot, isEstOfflineMode);
+          window.dispatchEvent(new CustomEvent('eliteride_estimation_cached_offline', { detail: estimationSnapshot }));
+          return estimationSnapshot;
+        };
+
+        window.restoreCachedRideEstimationOffline = async function() {
+          let cachedData = null;
+          if (typeof window.caches !== 'undefined' && typeof window.caches.open === 'function') {
+            try {
+              const cache = await window.caches.open(ELITE_ESTIMATION_SW_CACHE_NAME);
+              const resp = await cache.match(ELITE_OFFLINE_ESTIMATION_CACHE_URL);
+              if (resp) {
+                cachedData = await resp.json();
+              }
+            } catch (e) {}
+          }
+          if (!cachedData) {
+            cachedData = window.getLastCachedRideEstimationSync();
+          }
+          if (!cachedData) return null;
+
+          window.__ELITE_LAST_CACHED_ESTIMATION = cachedData;
+          const pickupSelect = document.getElementById('est-pickup');
+          const destSelect = document.getElementById('est-destination');
+          const mapCardSelect = document.getElementById('est-map-card-destination');
+
+          if (pickupSelect && cachedData.pickupKey) {
+            pickupSelect.value = cachedData.pickupKey;
+          }
+          if (destSelect && cachedData.destinationKey) {
+            let opt = Array.from(destSelect.options).find(o => o.value === cachedData.destinationKey);
+            if (!opt) {
+              opt = document.createElement('option');
+              opt.value = cachedData.destinationKey;
+              opt.textContent = `${cachedData.destinationFullName || cachedData.destinationName} (${cachedData.district || 'Dominica'})`;
+              destSelect.appendChild(opt);
+            }
+            destSelect.value = opt.value;
+          }
+          if (mapCardSelect && cachedData.destinationKey) {
+            let opt = Array.from(mapCardSelect.options).find(o => o.value === cachedData.destinationKey);
+            if (!opt) {
+              opt = document.createElement('option');
+              opt.value = cachedData.destinationKey;
+              opt.textContent = `${cachedData.destinationName} (${cachedData.travelTime || '45 mins'})`;
+              mapCardSelect.appendChild(opt);
+            }
+            mapCardSelect.value = opt.value;
+          }
+          const resolvedMeta = window.resolveEliteLocationMeta(cachedData.destinationKey) || {
+            key: cachedData.destinationKey,
+            value: cachedData.destinationKey,
+            shortName: cachedData.destinationName,
+            name: cachedData.destinationFullName || cachedData.destinationName,
+            district: cachedData.district || 'Dominica',
+            baseFare: cachedData.fareAmount || 120,
+            timeStr: cachedData.travelTime || '45 mins',
+            distStr: cachedData.distance || '24.5 miles'
+          };
+          activeMetaOverride = resolvedMeta;
+          updateEstimate(resolvedMeta);
+          updateOfflinePanelUI(cachedData, isEstOfflineMode);
+          window.dispatchEvent(new CustomEvent('eliteride_offline_estimation_restored', { detail: cachedData }));
+          return cachedData;
+        };
+
+        const setEstOfflineModeState = (nextOffline) => {
+          isEstOfflineMode = Boolean(nextOffline);
+          try {
+            localStorage.setItem('eliteride_offline_mode_enabled', isEstOfflineMode ? 'true' : 'false');
+          } catch (e) {}
+          const pickupSel = document.getElementById('est-pickup');
+          const destSel = document.getElementById('est-destination');
+          if (isEstOfflineMode && (!pickupSel?.value || !destSel?.value)) {
+            window.restoreCachedRideEstimationOffline();
+          } else {
+            updateOfflinePanelUI(window.getLastCachedRideEstimationSync(), isEstOfflineMode);
+          }
+        };
+
+        const offlineToggleBtn = document.getElementById('est-offline-mode-toggle-btn');
+        if (offlineToggleBtn) {
+          offlineToggleBtn.addEventListener('click', () => {
+            setEstOfflineModeState(!isEstOfflineMode);
+          });
+        }
+
+        const restoreCacheBtn = document.getElementById('est-restore-cached-estimate-btn');
+        if (restoreCacheBtn) {
+          restoreCacheBtn.addEventListener('click', () => {
+            window.restoreCachedRideEstimationOffline();
+          });
+        }
+
+        window.addEventListener('offline', () => {
+          setEstOfflineModeState(true);
+          window.restoreCachedRideEstimationOffline();
+        });
+        window.addEventListener('online', () => {
+          setEstOfflineModeState(false);
+        });
+
+        // Pickup ➔ Set Dropoff Toggle Button in Ride Estimation Widget
+        let lastRemovedPickupKey = 'roseau';
+        const pickupToDropoffBtn = document.getElementById('est-pickup-to-dropoff-btn');
+        if (pickupToDropoffBtn) {
+          pickupToDropoffBtn.addEventListener('click', () => {
+            const pickupSel = document.getElementById('est-pickup');
+            const destSel = document.getElementById('est-destination');
+            if (!pickupSel || !destSel) return;
+            const currentPickup = pickupSel.value;
+            if (currentPickup) {
+              lastRemovedPickupKey = currentPickup;
+              pickupSel.value = '';
+              handleDestinationSelectionChange(currentPickup);
+              pickupToDropoffBtn.textContent = '✓ Pickup Removed & Dropoff Set';
+            } else {
+              const targetKey = lastRemovedPickupKey || 'roseau';
+              pickupSel.value = '';
+              handleDestinationSelectionChange(targetKey);
+              pickupToDropoffBtn.textContent = '✓ Pickup Removed & Dropoff Set';
+            }
+          });
+        }
+
+        // Print Trip Summary Button inside #est-route-map-card using jsPDF
+        window.printEstTripSummaryPDF = function() {
+          const cached = window.getLastCachedRideEstimationSync();
+          const pickupSel = document.getElementById('est-pickup');
+          const destSel = document.getElementById('est-destination');
+          const fareValText = document.getElementById('est-fare-val')?.innerText || cached?.estimatedFare || 'EC$ 120.00';
+          const finalPriceText = document.getElementById('est-final-price-val')?.innerText || cached?.finalPrice || fareValText;
+          const timeValText = document.getElementById('est-time-val')?.innerText || cached?.travelTime || '45 mins';
+          const distValText = document.getElementById('est-dist-val')?.innerText || cached?.distance || '24.5 miles';
+          const etaTimerText = document.getElementById('est-eta-countdown-timer')?.textContent || `${timeValText} remaining`;
+
+          const pickupKey = (pickupSel && pickupSel.value) ? pickupSel.value : (cached?.pickupKey || 'roseau');
+          const pickupName = (pickupSel && pickupSel.value && pickupSel.options[pickupSel.selectedIndex])
+            ? pickupSel.options[pickupSel.selectedIndex].text
+            : (cached?.pickupName || 'Roseau Center / Cruise Ship Berth');
+
+          const destKey = (destSel && destSel.value) ? destSel.value : (cached?.destinationKey || 'airport');
+          const resolvedMeta = window.resolveEliteLocationMeta(destKey) || ELITE_ESTIMATION_LOCATIONS_META.airport;
+          const destName = resolvedMeta?.shortName || cached?.destinationName || 'Melville Hall Airport (DOM)';
+          const district = resolvedMeta?.district || cached?.district || 'St. Andrew';
+          const corridor = (destStreetViewMeta[destKey] || destStreetViewMeta.airport).corridor;
+          const fareText = (fareValText === 'EC$ 0.00' && cached?.estimatedFare) ? cached.estimatedFare : fareValText;
+          const etaText = (timeValText === '0 mins' && cached?.travelTime) ? cached.travelTime : timeValText;
+          const distText = (distValText === '0.0 miles' && cached?.distance) ? cached.distance : distValText;
+          const receiptId = `EST-DOM-${String(destKey).toUpperCase().replace(/[^A-Z0-9]/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
+          const issuedAt = new Date().toLocaleString();
+          const routeTitle = `${pickupName.split(' / ')[0]} ➔ ${destName}`;
+
+          const generatePdfDoc = () => {
+            try {
+              const jsPDFConstructor = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+              if (!jsPDFConstructor) return null;
+
+              const doc = new jsPDFConstructor({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+              if (typeof doc.setFillColor === 'function' && typeof doc.rect === 'function') {
+                doc.setFillColor(2, 44, 34);
+                doc.rect(0, 0, 210, 40, 'F');
+              }
+              if (typeof doc.setTextColor === 'function') doc.setTextColor(255, 255, 255);
+              if (typeof doc.setFont === 'function') doc.setFont('helvetica', 'bold');
+              if (typeof doc.setFontSize === 'function') doc.setFontSize(20);
+              if (typeof doc.text === 'function') {
+                doc.text('ELITE RIDE DOMINICA', 14, 18);
+                if (typeof doc.setFontSize === 'function') doc.setFontSize(10);
+                if (typeof doc.setTextColor === 'function') doc.setTextColor(167, 243, 208);
+                doc.text('PRINTABLE TRIP SUMMARY RECEIPT — ROUTE, ETA & FARE ESTIMATE', 14, 26);
+                doc.text(`Receipt ID: ${receiptId} | Issued: ${issuedAt}`, 14, 33);
+
+                // Route & ETA Box
+                if (typeof doc.setFillColor === 'function' && typeof doc.rect === 'function') {
+                  doc.setFillColor(240, 253, 244);
+                  doc.rect(14, 48, 182, 34, 'F');
+                }
+                if (typeof doc.setTextColor === 'function') doc.setTextColor(6, 95, 70);
+                if (typeof doc.setFontSize === 'function') doc.setFontSize(12);
+                doc.text('1. ROUTE & LIVE ETA SUMMARY', 18, 57);
+
+                if (typeof doc.setTextColor === 'function') doc.setTextColor(15, 23, 42);
+                if (typeof doc.setFont === 'function') doc.setFont('helvetica', 'normal');
+                if (typeof doc.setFontSize === 'function') doc.setFontSize(10);
+                doc.text(`Route: ${routeTitle}`, 18, 65);
+                doc.text(`Pickup Origin: ${pickupName}`, 18, 71);
+                doc.text(`Dropoff Destination: ${destName} (${district} Parish) • Corridor: ${corridor}`, 18, 77);
+
+                // ETA & Distance Telemetry
+                if (typeof doc.setFont === 'function') doc.setFont('helvetica', 'bold');
+                if (typeof doc.setFontSize === 'function') doc.setFontSize(12);
+                doc.text('2. ESTIMATED TRAVEL TIME (ETA) & DISTANCE', 14, 95);
+                if (typeof doc.setFont === 'function') doc.setFont('helvetica', 'normal');
+                if (typeof doc.setFontSize === 'function') doc.setFontSize(10);
+                doc.text(`Estimated Travel Time (ETA): ${etaText}`, 14, 103);
+                doc.text(`Active Countdown Status: ${etaTimerText}`, 14, 110);
+                doc.text(`Estimated Route Distance: ${distText}`, 14, 117);
+                doc.text(`Connectivity / Cache Mode: ${isEstOfflineMode ? 'Offline Mountain Terrain Cache (SW)' : 'Live Online Telemetry'}`, 14, 124);
+
+                // Fare Estimate Breakdown
+                if (typeof doc.setFont === 'function') doc.setFont('helvetica', 'bold');
+                if (typeof doc.setFontSize === 'function') doc.setFontSize(12);
+                doc.text('3. FARE ESTIMATE RECEIPT BREAKDOWN', 14, 140);
+                if (typeof doc.setFont === 'function') doc.setFont('helvetica', 'normal');
+                if (typeof doc.setFontSize === 'function') doc.setFontSize(10);
+                doc.text(`Vehicle Class: ${(window.eliteVehicleCategory || 'standard').toUpperCase()}`, 14, 148);
+                doc.text(`Estimated Base Fare: ${fareText}`, 14, 155);
+                doc.text(`Final Estimated Trip Fare: ${finalPriceText}`, 14, 162);
+
+                if (typeof doc.setFont === 'function') doc.setFont('helvetica', 'bold');
+                if (typeof doc.setFontSize === 'function') doc.setFontSize(14);
+                if (typeof doc.setTextColor === 'function') doc.setTextColor(5, 150, 105);
+                doc.text(`TOTAL FARE ESTIMATE: ${fareText} (ETA: ${etaText})`, 14, 176);
+
+                if (typeof doc.setTextColor === 'function') doc.setTextColor(100, 116, 139);
+                if (typeof doc.setFont === 'function') doc.setFont('helvetica', 'normal');
+                if (typeof doc.setFontSize === 'function') doc.setFontSize(9);
+                doc.text('Generated via jsPDF • Printable Trip Summary Receipt for Route, ETA & Fare Estimate • Elite Ride Dominica', 14, 195);
+              }
+
+              if (typeof doc.autoPrint === 'function') {
+                doc.autoPrint();
+              }
+
+              let pdfDataUri = '';
+              try {
+                if (typeof doc.output === 'function') {
+                  pdfDataUri = doc.output('datauristring') || '';
+                }
+              } catch (e) {}
+
+              const fileName = `Elite_Ride_Trip_Summary_${destKey}.pdf`;
+              if (typeof doc.save === 'function') {
+                doc.save(fileName);
+              }
+
+              const summaryRecord = {
+                receiptId,
+                fileName,
+                route: routeTitle,
+                pickupName,
+                destinationName: destName,
+                district,
+                eta: etaText,
+                distance: distText,
+                fareEstimate: fareText,
+                printedAt: new Date().toISOString(),
+                pdfDataUri
+              };
+              window.__LAST_EST_PRINTED_SUMMARY = summaryRecord;
+              try {
+                localStorage.setItem('eliteride_last_est_printed_summary', JSON.stringify({
+                  receiptId,
+                  fileName,
+                  route: routeTitle,
+                  eta: etaText,
+                  distance: distText,
+                  fareEstimate: fareText,
+                  printedAt: summaryRecord.printedAt
+                }));
+              } catch (e) {}
+
+              const previewBox = document.getElementById('est-print-summary-receipt-preview');
+              if (previewBox) {
+                previewBox.style.display = 'block';
+                previewBox.setAttribute('data-receipt-id', receiptId);
+                previewBox.setAttribute('data-route', routeTitle);
+                previewBox.setAttribute('data-eta', etaText);
+                previewBox.setAttribute('data-fare', fareText);
+                previewBox.innerHTML = `
+                  <div class="flex items-center justify-between text-emerald-300 font-bold border-b border-slate-800 pb-1">
+                    <span>✓ Printable Trip Summary PDF Ready</span>
+                    <span class="text-[8.5px] text-slate-400">${receiptId}</span>
+                  </div>
+                  <div class="text-slate-200"><b>Route:</b> ${routeTitle} (${distText})</div>
+                  <div class="flex items-center justify-between text-sky-300">
+                    <span><b>ETA:</b> ${etaText}</span>
+                    <span class="text-emerald-400 font-extrabold"><b>Fare:</b> ${fareText}</span>
+                  </div>
+                  <div class="text-[8.5px] text-slate-400 truncate">Saved: ${fileName} (jsPDF Receipt)</div>
+                `;
+              }
+
+              const printBtnEl = document.getElementById('est-print-trip-summary-btn');
+              if (printBtnEl) {
+                printBtnEl.innerHTML = '<span>🖨️</span><span>Print Trip Summary (✓ PDF Saved)</span>';
+              }
+
+              window.dispatchEvent(new CustomEvent('eliteride_est_trip_summary_printed', { detail: summaryRecord }));
+              return doc;
+            } catch (err) {
+              console.error('Error generating Print Trip Summary PDF:', err);
+              return null;
+            }
+          };
+
+          if (typeof window.jspdf === 'undefined' && typeof window.jsPDF === 'undefined') {
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+            script.onload = () => generatePdfDoc();
+            document.head.appendChild(script);
+            return null;
+          }
+          return generatePdfDoc();
+        };
+
+        const estPrintSummaryBtn = document.getElementById('est-print-trip-summary-btn');
+        if (estPrintSummaryBtn) {
+          estPrintSummaryBtn.addEventListener('click', () => {
+            window.printEstTripSummaryPDF();
+          });
+        }
 
         const renderDestinationSearchResults = (queryStr = '', autoSelectMatch = false) => {
           const resultsContainer = document.getElementById('est-search-results');
@@ -2101,7 +2695,10 @@
               key === 'eliteride_user_profile' ||
               key === 'eliteride_rider_photo' ||
               key === 'eliteride_drivers_online' ||
-              key === 'elite_driver_status'
+              key === 'elite_driver_status' ||
+              key === 'eliteride_offline_last_estimation' ||
+              key === 'eliteride_offline_mode_enabled' ||
+              key === 'eliteride_last_est_printed_summary'
             ) {
               continue;
             }
