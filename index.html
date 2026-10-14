@@ -858,17 +858,44 @@
               </select>
             </div>
 
-            <!-- Animated SVG Route Progress Visualization + ETA Countdown Timer + Synced Street View -->
+            <!-- Animated SVG Route Progress Visualization + ETA Countdown Timer + Synced Street View + Favorite Heart Button -->
             <div id="est-route-map-card" data-testid="est-route-map-card" data-selected-destination="airport" data-travel-time="45 mins" data-eta-minutes="45" class="bg-slate-950/90 border border-sky-500/30 rounded-xl p-2.5 space-y-2">
-              <div class="flex items-center justify-between text-[10px]">
-                <span class="font-bold text-sky-400 flex items-center gap-1">
+              <div class="flex items-center justify-between text-[10px] gap-1">
+                <span class="font-bold text-sky-400 flex items-center gap-1 truncate">
                   <span>🗺️</span>
-                  <span>Route Progress (Origin ➔ Destination)</span>
+                  <span class="truncate">Route Progress (Origin ➔ Destination)</span>
                 </span>
-                <div class="flex items-center gap-1.5">
+                <div class="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    id="est-favorite-heart-btn"
+                    data-testid="est-favorite-heart-btn"
+                    aria-label="Pin or Favorite Currently Selected Destination Route"
+                    aria-pressed="false"
+                    data-favorited="false"
+                    data-destination="airport"
+                    title="Pin/Favorite currently selected destination as a quick-access favorite route"
+                    class="pin-favorite-heart-btn flex items-center gap-1 px-2 py-0.5 rounded-lg border text-[10px] font-bold transition-all cursor-pointer bg-slate-900 hover:bg-rose-950/70 border-rose-500/40 text-rose-300"
+                  >
+                    <span id="est-favorite-heart-icon" class="text-xs leading-none">🤍</span>
+                    <span id="est-favorite-heart-label">Pin Favorite</span>
+                  </button>
                   <span id="est-route-progress-badge" class="font-mono font-bold text-emerald-400 bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-500/30">100%</span>
                   <button type="button" id="est-replay-route-btn" data-testid="est-replay-route-btn" class="text-[9px] bg-slate-800 hover:bg-slate-700 text-sky-300 px-1.5 py-0.5 rounded border border-slate-700 cursor-pointer">Replay</button>
                 </div>
+              </div>
+
+              <!-- Quick-Access Favorite Routes Strip inside #est-route-map-card -->
+              <div id="est-favorite-routes-section" data-testid="est-favorite-routes-section" class="bg-slate-900/90 border border-rose-500/30 rounded-lg px-2 py-1.5 space-y-1">
+                <div class="flex items-center justify-between text-[9px]">
+                  <span class="font-bold text-rose-300 flex items-center gap-1">
+                    <span>❤️</span>
+                    <span>Quick-Access Favorite Routes</span>
+                  </span>
+                  <span id="est-favorite-routes-count" class="font-mono text-rose-200 bg-rose-950/80 px-1.5 py-0.2 rounded border border-rose-500/30">Saved</span>
+                </div>
+                <div id="est-favorite-toast-msg" data-testid="est-favorite-toast-msg" style="display:none;" class="text-[9px] font-bold text-emerald-300 bg-emerald-950/80 border border-emerald-500/30 rounded px-1.5 py-0.5"></div>
+                <div id="est-favorite-routes-quickbar" data-testid="est-favorite-routes-quickbar" class="flex flex-wrap gap-1"></div>
               </div>
 
               <!-- Synced Destination Selector & Live ETA Countdown Timer inside #est-route-map-card -->
@@ -1339,6 +1366,195 @@
         }
 
         let isInternalEstUpdate = false;
+        const EST_QUICK_FAV_STORAGE_KEY = 'eliteride_est_quick_favorite_routes';
+
+        const getEstQuickFavoriteRoutes = () => {
+          try {
+            const raw = localStorage.getItem(EST_QUICK_FAV_STORAGE_KEY);
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              if (Array.isArray(parsed)) return parsed;
+            }
+          } catch (e) {}
+          return [];
+        };
+
+        const saveEstQuickFavoriteRoutes = (list) => {
+          try {
+            localStorage.setItem(EST_QUICK_FAV_STORAGE_KEY, JSON.stringify(list));
+          } catch (e) {}
+          return list;
+        };
+
+        const syncEstFavoriteHeartUI = (destKey) => {
+          const heartBtn = document.getElementById('est-favorite-heart-btn');
+          const heartIcon = document.getElementById('est-favorite-heart-icon');
+          const heartLabel = document.getElementById('est-favorite-heart-label');
+          if (!heartBtn) return;
+
+          const resolved = window.resolveEliteLocationMeta(destKey);
+          const canonicalKey = resolved?.key || resolved?.value || destKey || '';
+          const quickFavs = getEstQuickFavoriteRoutes();
+          const isFav = Boolean(canonicalKey) && quickFavs.some(f => f.destKey === canonicalKey || f.value === canonicalKey || f.id === resolved?.id);
+
+          heartBtn.setAttribute('data-destination', canonicalKey);
+          heartBtn.setAttribute('data-favorited', isFav ? 'true' : 'false');
+          heartBtn.setAttribute('aria-pressed', isFav ? 'true' : 'false');
+          if (isFav) {
+            heartBtn.className = 'pin-favorite-heart-btn favorited active pinned flex items-center gap-1 px-2 py-0.5 rounded-lg border text-[10px] font-bold transition-all cursor-pointer bg-rose-500/25 border-rose-400 text-rose-200 shadow-sm';
+            if (heartIcon) heartIcon.textContent = '❤️';
+            if (heartLabel) heartLabel.textContent = 'Pinned Favorite';
+          } else {
+            heartBtn.className = 'pin-favorite-heart-btn flex items-center gap-1 px-2 py-0.5 rounded-lg border text-[10px] font-bold transition-all cursor-pointer bg-slate-900 hover:bg-rose-950/70 border-rose-500/40 text-rose-300';
+            if (heartIcon) heartIcon.textContent = '🤍';
+            if (heartLabel) heartLabel.textContent = 'Pin Favorite';
+          }
+        };
+
+        const renderEstFavoriteRoutesQuickbar = () => {
+          const quickbar = document.getElementById('est-favorite-routes-quickbar');
+          const countEl = document.getElementById('est-favorite-routes-count');
+          const destSelect = document.getElementById('est-destination');
+          if (!quickbar) return;
+
+          const quickFavs = getEstQuickFavoriteRoutes();
+          const activeDest = destSelect ? destSelect.value : '';
+          if (countEl) {
+            countEl.textContent = `${quickFavs.length} Pinned`;
+          }
+
+          if (quickFavs.length === 0) {
+            quickbar.innerHTML = `<span class="text-[9px] text-slate-400 italic">Click ❤️ Pin Favorite to save the selected destination for 1-click access</span>`;
+            return;
+          }
+
+          quickbar.innerHTML = quickFavs.map(fav => {
+            const isSelected = Boolean(activeDest) && (fav.destKey === activeDest || fav.value === activeDest);
+            return `
+              <button
+                type="button"
+                class="est-fav-route-chip px-2 py-0.5 rounded-full text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1 border ${
+                  isSelected
+                    ? 'bg-rose-500/25 border-rose-400 text-rose-100 shadow-sm'
+                    : 'bg-slate-950 hover:bg-slate-800 border-rose-500/30 text-rose-200'
+                }"
+                data-testid="est-favorite-route-chip"
+                data-dest-key="${fav.destKey}"
+                data-pickup-key="${fav.pickupKey || 'roseau'}"
+                title="${fav.pickupLabel || 'Roseau Center'} ➔ ${fav.shortName} (${fav.timeStr})"
+              >
+                <span>❤️</span>
+                <span class="truncate max-w-[125px]">${fav.shortName}</span>
+                <span class="text-[9px] font-mono text-emerald-300">(${fav.timeStr})</span>
+              </button>
+            `;
+          }).join('');
+
+          quickbar.querySelectorAll('.est-fav-route-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+              const dKey = chip.getAttribute('data-dest-key');
+              const pKey = chip.getAttribute('data-pickup-key') || 'roseau';
+              const pickupSel = document.getElementById('est-pickup');
+              if (pickupSel && pKey) pickupSel.value = pKey;
+              handleDestinationSelectionChange(dKey);
+            });
+          });
+        };
+
+        const toggleEstCurrentDestinationFavorite = () => {
+          const pickupSelect = document.getElementById('est-pickup');
+          const destSelect = document.getElementById('est-destination');
+          const mapCardSelect = document.getElementById('est-map-card-destination');
+          const pickupKey = (pickupSelect && pickupSelect.value) ? pickupSelect.value : 'roseau';
+          const destKey = (destSelect && destSelect.value) || (mapCardSelect && mapCardSelect.value) || 'airport';
+
+          const resolved = window.resolveEliteLocationMeta(activeMetaOverride || destKey) || ELITE_ESTIMATION_LOCATIONS_META.airport;
+          const canonicalKey = resolved.key || resolved.value || destKey;
+          const pInfo = estPickupCoords[pickupKey] || estPickupCoords.roseau;
+
+          const quickFavs = getEstQuickFavoriteRoutes();
+          const existingIdx = quickFavs.findIndex(f => f.destKey === canonicalKey || f.value === canonicalKey);
+          const toastEl = document.getElementById('est-favorite-toast-msg');
+
+          let updatedQuickFavs;
+          let wasAdded = true;
+          if (existingIdx !== -1) {
+            updatedQuickFavs = quickFavs.filter((_, i) => i !== existingIdx);
+            wasAdded = false;
+          } else {
+            const newQuickFav = {
+              id: `fav-est-${canonicalKey}`,
+              pickupKey,
+              pickupLabel: pInfo.label,
+              destKey: canonicalKey,
+              value: resolved.value || canonicalKey,
+              locId: resolved.id || canonicalKey,
+              shortName: resolved.shortName || resolved.name?.split(' - ')[0] || canonicalKey,
+              name: resolved.name || resolved.shortName,
+              district: resolved.district || 'Dominica',
+              timeStr: resolved.timeStr || '45 mins',
+              distStr: resolved.distStr || '24.5 miles',
+              baseFare: resolved.baseFare ?? 120,
+              timestamp: Date.now()
+            };
+            updatedQuickFavs = [newQuickFav, ...quickFavs];
+            wasAdded = true;
+          }
+
+          saveEstQuickFavoriteRoutes(updatedQuickFavs);
+
+          // Also sync with global pinned favorite routes (eliteride_favorite_routes_v1)
+          if (typeof window.getPinnedFavoriteRoutes === 'function' && typeof window.savePinnedFavoriteRoutes === 'function') {
+            const globalFavs = window.getPinnedFavoriteRoutes();
+            const dName = resolved.shortName || resolved.name || canonicalKey;
+            const dId = resolved.id || canonicalKey;
+            if (wasAdded) {
+              const filteredGlobal = globalFavs.filter(f => f.dropoffId !== dId && f.dropoffName !== dName);
+              const distMiles = parseFloat(String(resolved.distStr || '15').replace(/[^0-9.]/g, '')) || 15.0;
+              const distKm = Number((distMiles * 1.60934).toFixed(1));
+              const fareXCD = Number(resolved.baseFare ?? 85);
+              const newGlobalFav = {
+                id: `fav-est-${canonicalKey}`,
+                title: `${pInfo.label} ➔ ${dName}`,
+                type: 'route',
+                pinned: true,
+                tag: '❤️ Quick-Access Favorite Route',
+                pickupId: pickupKey,
+                pickupName: pInfo.label,
+                pickupDistrict: 'Dominica',
+                dropoffId: dId,
+                dropoffName: dName,
+                dropoffDistrict: resolved.district || 'Dominica',
+                distanceKm: distKm,
+                distanceMiles: distMiles,
+                fareXCD,
+                fareUSD: Number((fareXCD / 2.7).toFixed(2)),
+                timeStr: resolved.timeStr || '45 mins',
+                vehicleCategory: window.eliteVehicleCategory || 'standard',
+                preferredDriver: 'Captain Marcus Christian'
+              };
+              window.savePinnedFavoriteRoutes([newGlobalFav, ...filteredGlobal]);
+            } else {
+              const remainingGlobal = globalFavs.filter(f => f.id !== `fav-est-${canonicalKey}` && f.dropoffId !== dId);
+              window.savePinnedFavoriteRoutes(remainingGlobal);
+            }
+          }
+
+          syncEstFavoriteHeartUI(canonicalKey);
+          renderEstFavoriteRoutesQuickbar();
+
+          if (toastEl) {
+            toastEl.textContent = wasAdded
+              ? `❤️ Saved "${resolved.shortName}" (${resolved.timeStr}) to Quick-Access Favorites!`
+              : `Removed "${resolved.shortName}" from Quick-Access Favorites.`;
+            toastEl.style.display = 'block';
+            clearTimeout(window._estFavToastTimer);
+            window._estFavToastTimer = setTimeout(() => {
+              if (toastEl) toastEl.style.display = 'none';
+            }, 3500);
+          }
+        };
+        window.toggleEstCurrentDestinationFavorite = toggleEstCurrentDestinationFavorite;
 
         const updateEstimate = (metaOverride = null) => {
           if (isInternalEstUpdate) return;
@@ -1397,6 +1613,8 @@
 
             animateEstSvgRoute(pickupVal, canonicalKey, false);
             startEstEtaCountdown(parsedMinutes, canonicalKey, { ...meta, ...canonicalEntry, key: canonicalKey }, timeStr, distStr, false);
+            syncEstFavoriteHeartUI(canonicalKey);
+            renderEstFavoriteRoutesQuickbar();
           } finally {
             isInternalEstUpdate = false;
           }
@@ -1525,6 +1743,13 @@
             searchInput.value = '';
             activeMetaOverride = null;
             renderDestinationSearchResults('', false);
+          });
+        }
+
+        const favHeartBtn = document.getElementById('est-favorite-heart-btn');
+        if (favHeartBtn) {
+          favHeartBtn.addEventListener('click', () => {
+            toggleEstCurrentDestinationFavorite();
           });
         }
 
@@ -1748,6 +1973,7 @@
 
         window.renderRecentDestinationsChips();
         renderDestinationSearchResults('', false);
+        renderEstFavoriteRoutesQuickbar();
         window.syncEstimationDriverStatusUI();
         updateEstimate();
       }
@@ -1857,6 +2083,7 @@
               key === 'elite_driver_ratings' ||
               key === 'eliteride_favorite_drivers' ||
               key === 'eliteride_favorite_routes_v1' ||
+              key === 'eliteride_est_quick_favorite_routes' ||
               key === 'eliteride_user_profile' ||
               key === 'eliteride_rider_photo' ||
               key === 'eliteride_drivers_online' ||
